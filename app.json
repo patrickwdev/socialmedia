@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "react-native-expo-starter",
+    "slug": "react-native-expo-starter",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to your photos and videos to create highlights."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "android": {
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.reactnativeexpostarter"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "772183a1-b66f-4fb4-8a3f-ee7c9c924df6"
+      }
+    }
+  }
+}
