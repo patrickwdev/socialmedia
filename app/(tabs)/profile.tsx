@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useFeedPosts } from '@/context/FeedPostsContext';
 import { FeedCard } from '@/components/FeedCard';
 import { useProfile } from '@/hooks/useProfile';
-import { useThemeBackgroundStyle } from '@/context/ThemeContext';
+import { useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 import { ProfileLinkDisplay } from '@/components/ProfileLinkDisplay';
 import * as Clipboard from 'expo-clipboard';
 import { Link as LinkIcon, X } from 'lucide-react-native';
@@ -98,8 +98,8 @@ export default function ProfileScreen() {
     || metadata.links?.find((item) => typeof item?.url === 'string' && item.url.trim())?.url?.trim()
     || '';
   const normalizedProfileLink = profileLink && /^https?:\/\//i.test(profileLink) ? profileLink : `https://${profileLink}`;
-  // Sport / level only (editable via metadata). Signup `team` is verification context — do not show as profile "bio" line.
-  const sportSubtitle = [profile?.sport?.trim(), sportLevel].filter(Boolean).join(' • ');
+  // Sport / level only (editable via metadata). Signup `team` is verification context â€” do not show as profile "bio" line.
+  const sportSubtitle = [profile?.sport?.trim(), sportLevel].filter(Boolean).join(' â€¢ ');
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [showConnectionsPanel, setShowConnectionsPanel] = useState(false);
   const [connectionsTab, setConnectionsTab] = useState<ConnectionsTab>('followers');
@@ -233,6 +233,608 @@ export default function ProfileScreen() {
         item.name.toLowerCase().includes(q) || item.username.toLowerCase().includes(q)
     );
   }, [connectionsTab, connectionsSearch]);
+
+  const styles = useThemedStylesheet(() => ({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: Colors.textSecondary,
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
+  coverContainer: {
+    height: 240,
+    width: '100%',
+    position: 'relative',
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.border,
+  },
+  coverGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+  },
+  headerActions: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contentContainer: {
+    marginTop: -40,
+    paddingHorizontal: 16,
+    paddingBottom: 100,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 16,
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: Colors.background,
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: Colors.background,
+    backgroundColor: Colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    padding: 2,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+  },
+  followButton: {
+    backgroundColor: Colors.card,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nameSection: {
+    marginBottom: 24,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 0,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  username: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.text,
+    marginTop: -2,
+    marginBottom: 0,
+  },
+  subtitle: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    marginTop: -2,
+    marginBottom: 10,
+  },
+  locationAndBio: {
+    marginTop: -10,
+    gap: 6,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  locationRowNoBio: {
+    marginTop: -4,
+  },
+  locationRowAfterBio: {
+    marginTop: -4,
+  },
+  locationRowAboveLink: {
+    marginBottom: 2,
+  },
+  locationIcon: {
+    marginRight: 6,
+  },
+  locationText: {
+    color: Colors.text,
+    fontSize: 14,
+    flex: 1,
+  },
+  bio: {
+    color: Colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    marginTop: -2,
+  },
+  profileLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: -4,
+  },
+  profileLinkRowNoBio: {
+    marginTop: -6,
+  },
+  profileLinkRowAfterLocation: {
+    marginTop: -8,
+  },
+  profileLinkText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  contentTabs: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    paddingBottom: 16,
+  },
+  tab: {
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  activeTab: {
+    opacity: 1,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  activeTabLabel: {
+    color: Colors.primary,
+  },
+  activeLine: {
+    position: 'absolute',
+    bottom: -17, // Align with border
+    width: '60%',
+    height: 3,
+    backgroundColor: Colors.primary,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+  statsTabSection: {
+    gap: 16,
+    paddingBottom: 8,
+  },
+  statsTabCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  statsTabCardTitle: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 14,
+  },
+  statsTabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  statsTabLabel: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  statsTabValue: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  statsTabValueShrink: {
+    flex: 1,
+    textAlign: 'right',
+  },
+  statsTabDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 10,
+  },
+  postsEmptyWrap: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  postsEmptyText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+  },
+  postsFeedList: {
+    width: '100%',
+    paddingTop: 4,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  gridItem: {
+    width: COLUMN_WIDTH,
+    height: COLUMN_WIDTH * 1.3,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: Colors.card,
+    position: 'relative',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  textGridPreview: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.card,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  textGridPreviewText: {
+    color: Colors.text,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  pollGridBadge: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: Colors.primary,
+    marginBottom: 6,
+  },
+  videoIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 4,
+    borderRadius: 100,
+  },
+  panelOverlay: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+  },
+  panelBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  connectionsPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  connectionsPanelInner: {
+    flex: 1,
+  },
+  connectionsPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  connectionsPanelBack: {
+    padding: 4,
+    minWidth: 32,
+  },
+  connectionsPanelTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  connectionsPanelClose: {
+    padding: 4,
+    minWidth: 32,
+    alignItems: 'flex-end',
+  },
+  sharePanelBody: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 12,
+  },
+  shareLabel: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  quickShareRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  quickShareRowSecondary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 2,
+  },
+  quickShareOption: {
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  quickShareSpacer: {
+    flex: 1,
+  },
+  quickShareIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickShareText: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  shareLinkBox: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  shareSectionDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
+  },
+  shareLinkText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  inlineCopyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  inlineCopyButtonText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  connectionsTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    gap: 8,
+  },
+  connectionsTab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    position: 'relative',
+  },
+  connectionsTabActive: {},
+  connectionsTabLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  connectionsTabLabelActive: {
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  connectionsTabIndicator: {
+    position: 'absolute',
+    bottom: -13,
+    left: '20%',
+    right: '20%',
+    height: 3,
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
+  },
+  connectionsSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  connectionsSearchIcon: {
+    marginRight: 10,
+  },
+  connectionsSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text,
+    paddingVertical: 0,
+  },
+  connectionsListContent: {
+    paddingVertical: 12,
+    paddingBottom: 40,
+  },
+  connectPanelSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  connectPanelEmptyText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 24,
+  },
+  connectionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  connectionsAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.card,
+  },
+  connectionsInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  connectionsNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  connectionsName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    flex: 1,
+  },
+  connectionsUsername: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  connectionsFollowBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  connectionsFollowBtnText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  }));
 
   const openConnectionsPanel = (tab: ConnectionsTab) => {
     setConnectionsTab(tab);
@@ -836,7 +1438,7 @@ export default function ProfileScreen() {
               <View style={styles.sharePanelBody}>
                 <Text style={styles.shareLabel}>Profile link</Text>
                 <View style={styles.shareLinkBox}>
-                  <Text style={styles.shareLinkText} numberOfLines={1}>{shareProfileUrl || '—'}</Text>
+                  <Text style={styles.shareLinkText} numberOfLines={1}>{shareProfileUrl || 'â€”'}</Text>
                   <TouchableOpacity
                     style={styles.inlineCopyButton}
                     onPress={() => handleCopyLink(false)}
@@ -921,605 +1523,3 @@ export default function ProfileScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
-  coverContainer: {
-    height: 240,
-    width: '100%',
-    position: 'relative',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  coverPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: Colors.border,
-  },
-  coverGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-  },
-  headerActions: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  contentContainer: {
-    marginTop: -40,
-    paddingHorizontal: 16,
-    paddingBottom: 100,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 16,
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
-    borderColor: Colors.background,
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
-    borderColor: Colors.background,
-    backgroundColor: Colors.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 2,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 10,
-  },
-  followButton: {
-    backgroundColor: Colors.card,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nameSection: {
-    marginBottom: 24,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 0,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  username: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
-    marginTop: -2,
-    marginBottom: 0,
-  },
-  subtitle: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    marginTop: -2,
-    marginBottom: 10,
-  },
-  locationAndBio: {
-    marginTop: -10,
-    gap: 6,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  locationRowNoBio: {
-    marginTop: -4,
-  },
-  locationRowAfterBio: {
-    marginTop: -4,
-  },
-  locationRowAboveLink: {
-    marginBottom: 2,
-  },
-  locationIcon: {
-    marginRight: 6,
-  },
-  locationText: {
-    color: Colors.text,
-    fontSize: 14,
-    flex: 1,
-  },
-  bio: {
-    color: Colors.text,
-    fontSize: 15,
-    lineHeight: 20,
-    marginTop: -2,
-  },
-  profileLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: -4,
-  },
-  profileLinkRowNoBio: {
-    marginTop: -6,
-  },
-  profileLinkRowAfterLocation: {
-    marginTop: -8,
-  },
-  profileLinkText: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    color: Colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  statLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
-  contentTabs: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    paddingBottom: 16,
-  },
-  tab: {
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-    minWidth: 0,
-  },
-  activeTab: {
-    opacity: 1,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  activeTabLabel: {
-    color: Colors.primary,
-  },
-  activeLine: {
-    position: 'absolute',
-    bottom: -17, // Align with border
-    width: '60%',
-    height: 3,
-    backgroundColor: Colors.primary,
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-  },
-  statsTabSection: {
-    gap: 16,
-    paddingBottom: 8,
-  },
-  statsTabCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  statsTabCardTitle: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 14,
-  },
-  statsTabRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  statsTabLabel: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  statsTabValue: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  statsTabValueShrink: {
-    flex: 1,
-    textAlign: 'right',
-  },
-  statsTabDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: 10,
-  },
-  postsEmptyWrap: {
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  postsEmptyText: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-  },
-  postsFeedList: {
-    width: '100%',
-    paddingTop: 4,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  gridItem: {
-    width: COLUMN_WIDTH,
-    height: COLUMN_WIDTH * 1.3,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: Colors.card,
-    position: 'relative',
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  textGridPreview: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: Colors.card,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    justifyContent: 'center',
-  },
-  textGridPreviewText: {
-    color: Colors.text,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-  },
-  pollGridBadge: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: Colors.primary,
-    marginBottom: 6,
-  },
-  videoIcon: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 4,
-    borderRadius: 100,
-  },
-  panelOverlay: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    right: 0,
-    bottom: 0,
-  },
-  panelBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  connectionsPanel: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  connectionsPanelInner: {
-    flex: 1,
-  },
-  connectionsPanelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  connectionsPanelBack: {
-    padding: 4,
-    minWidth: 32,
-  },
-  connectionsPanelTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  connectionsPanelClose: {
-    padding: 4,
-    minWidth: 32,
-    alignItems: 'flex-end',
-  },
-  sharePanelBody: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 12,
-  },
-  shareLabel: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  quickShareRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  quickShareRowSecondary: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 2,
-  },
-  quickShareOption: {
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  quickShareSpacer: {
-    flex: 1,
-  },
-  quickShareIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quickShareText: {
-    color: Colors.text,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  shareLinkBox: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  shareSectionDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: 4,
-  },
-  shareLinkText: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
-  },
-  inlineCopyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.background,
-  },
-  inlineCopyButtonText: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  connectionsTabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: 8,
-  },
-  connectionsTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    position: 'relative',
-  },
-  connectionsTabActive: {},
-  connectionsTabLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  connectionsTabLabelActive: {
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  connectionsTabIndicator: {
-    position: 'absolute',
-    bottom: -13,
-    left: '20%',
-    right: '20%',
-    height: 3,
-    backgroundColor: Colors.primary,
-    borderRadius: 2,
-  },
-  connectionsSearchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginVertical: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  connectionsSearchIcon: {
-    marginRight: 10,
-  },
-  connectionsSearchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.text,
-    paddingVertical: 0,
-  },
-  connectionsListContent: {
-    paddingVertical: 12,
-    paddingBottom: 40,
-  },
-  connectPanelSectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginHorizontal: 20,
-    marginBottom: 8,
-    letterSpacing: 0.5,
-  },
-  connectPanelEmptyText: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 24,
-  },
-  connectionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  connectionsAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.card,
-  },
-  connectionsInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  connectionsNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  connectionsName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    flex: 1,
-  },
-  connectionsUsername: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  connectionsFollowBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  connectionsFollowBtnText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, Platform, StatusBar, TouchableOpacity } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
-import { useThemeBackgroundStyle } from '@/context/ThemeContext';
+import { useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 import { ChevronLeft, MessageCircle } from 'lucide-react-native';
 
 type MessagesScreenProps = {
@@ -12,6 +12,59 @@ type MessagesScreenProps = {
 
 export default function MessagesScreen({ showBackButton = true }: MessagesScreenProps) {
   const bgStyle = useThemeBackgroundStyle();
+  const styles = useThemedStylesheet(() => ({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.background,
+      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    backButton: {
+      padding: 4,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    headerSpacer: {
+      width: 28,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+    },
+    emptyIconWrap: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: Colors.card,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: Colors.text,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: 15,
+      color: Colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+  }));
   const router = useRouter();
 
   return (
@@ -38,57 +91,3 @@ export default function MessagesScreen({ showBackButton = true }: MessagesScreen
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  headerSpacer: {
-    width: 28,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-});

@@ -19,10 +19,90 @@ import { useCreatePost } from '@/context/CreatePostContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
-import { useThemeBackgroundStyle } from '@/context/ThemeContext';
+import { useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 
 export default function HomeScreen() {
   const bgStyle = useThemeBackgroundStyle();
+  const styles = useThemedStylesheet(() => ({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.background,
+      paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
+    },
+    header: {
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+      backgroundColor: Colors.background,
+      zIndex: 10,
+    },
+    headerTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 0,
+      marginTop: 10,
+    },
+    headerSeparator: {
+      height: 1,
+      backgroundColor: Colors.border,
+      marginHorizontal: -16,
+      marginTop: 12,
+      marginBottom: 12,
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    headerIcons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    iconButton: {
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 20,
+      backgroundColor: Colors.card,
+    },
+    tabsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 40,
+    },
+    tabItem: {
+      paddingVertical: 8,
+    },
+    tabItemActive: {
+      paddingVertical: 8,
+      position: 'relative',
+    },
+    tabText: {
+      color: Colors.textSecondary,
+      fontSize: 16,
+      fontWeight: '500',
+    },
+    tabTextActive: {
+      color: Colors.success,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    activeIndicator: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+      backgroundColor: '#10B981',
+      borderRadius: 2,
+    },
+    scrollContent: {
+      padding: 16,
+      paddingTop: 8,
+    },
+  }));
   const router = useRouter();
   const isTabFocused = useIsFocused();
   const { open, visible: isCreatePostOpen } = useCreatePost();
@@ -117,84 +197,3 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: Colors.background,
-    zIndex: 10,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 0,
-    marginTop: 10,
-  },
-  headerSeparator: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: -16,
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 40,
-  },
-  tabItem: {
-    paddingVertical: 8,
-  },
-  tabItemActive: {
-    paddingVertical: 8,
-    position: 'relative',
-  },
-  tabText: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: Colors.success,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: '#10B981',
-    borderRadius: 2,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 8,
-  },
-});

@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from 'react';
+﻿import React, { useRef, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Pressable,
   Alert,
   type LayoutChangeEvent,
+  type StyleProp,
+  type TextStyle,
 } from 'react-native';
 import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { Post } from '@/data/mock';
@@ -32,7 +34,7 @@ import { BlurView } from 'expo-blur';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedPosts } from '@/context/FeedPostsContext';
 import { useRelativePostTime } from '@/hooks/useRelativePostTime';
-import { useThemeBackgroundStyle } from '@/context/ThemeContext';
+import { useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 import { captionWithoutMentionTokens, extractMentionUsernames } from '@/lib/parseCaptionMentions';
 
 const TEXT_POST_BODY_FONT_SIZE = 13;
@@ -44,10 +46,45 @@ interface FeedCardProps {
   defaultMuted?: boolean;
 }
 
+const META_SEP = ' · ';
+
+type PostMetaSublineProps = {
+  sport?: string;
+  time: string;
+  location: string;
+  containerStyle: StyleProp<TextStyle>;
+  sportEmphasisStyle: StyleProp<TextStyle>;
+  secondaryStyle: StyleProp<TextStyle>;
+};
+
+/** Sport, time, and location on one line with a consistent middle dot. */
+function PostMetaSubline({
+  sport,
+  time,
+  location,
+  containerStyle,
+  sportEmphasisStyle,
+  secondaryStyle,
+}: PostMetaSublineProps) {
+  const s = sport?.trim() ?? '';
+  const t = time.trim();
+  const l = location.trim();
+  if (!s && !t && !l) return null;
+  return (
+    <Text style={containerStyle} numberOfLines={1}>
+      {s ? <Text style={sportEmphasisStyle}>{s}</Text> : null}
+      {s && (t || l) ? <Text style={secondaryStyle}>{META_SEP}</Text> : null}
+      {t ? <Text style={secondaryStyle}>{t}</Text> : null}
+      {t && l ? <Text style={secondaryStyle}>{META_SEP}</Text> : null}
+      {l ? <Text style={secondaryStyle}>{l}</Text> : null}
+    </Text>
+  );
+}
+
 export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defaultMuted = false }) => {
   const { user } = useAuth();
   const { deletePost } = useFeedPosts();
-  const relativeTime = useRelativePostTime(post.createdAt, post.timeAgo);
+  const relativeTime = useRelativePostTime(post.createdAt, post.timeAgo ?? '', true);
   const locationLabel = post.location?.trim() ?? '';
   const mentionTags = useMemo(() => extractMentionUsernames(post.caption), [post.caption]);
   const captionBody = useMemo(() => captionWithoutMentionTokens(post.caption), [post.caption]);
@@ -59,6 +96,456 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
   const menuSlideAnim = useRef(new Animated.Value(260)).current;
   const menuBackdropAnim = useRef(new Animated.Value(0)).current;
   const bgStyle = useThemeBackgroundStyle();
+  const styles = useThemedStylesheet(() => ({
+    container: {
+      backgroundColor: Colors.card,
+      borderRadius: 24,
+      marginBottom: 20,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: Colors.border,
+    },
+    headerOverlay: {
+      position: 'absolute',
+      top: 16,
+      left: 16,
+      right: 16,
+      zIndex: 16,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    headerOverlayStart: {
+      flexShrink: 1,
+      maxWidth: '62%',
+    },
+    headerOverlayEnd: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flexShrink: 0,
+    },
+    mediaOverlayMoreButton: {
+      borderRadius: 18,
+      overflow: 'hidden',
+    },
+    mediaOverlayMoreBlur: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
+      backgroundColor: 'rgba(0, 0, 0, 0.35)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.22)',
+    },
+    badgeContainer: {
+      borderRadius: 100,
+      overflow: 'hidden',
+    },
+    verifiedBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 100,
+    },
+    verifiedText: {
+      color: 'white',
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+    },
+    liveBadge: {
+      backgroundColor: '#EF4444',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 4,
+    },
+    liveText: {
+      color: 'white',
+      fontSize: 10,
+      fontWeight: '800',
+    },
+    contentContainer: {
+      width: '100%',
+      aspectRatio: 4 / 5,
+      position: 'relative',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    media: {
+      width: '100%',
+      height: '100%',
+    },
+    mediaPager: {
+      width: '100%',
+      height: '100%',
+    },
+    carouselDots: {
+      position: 'absolute',
+      bottom: 12,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+      zIndex: 12,
+    },
+    carouselDotsAboveCaption: {
+      bottom: 108,
+    },
+    carouselDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: 'rgba(255,255,255,0.45)',
+    },
+    carouselDotActive: {
+      width: 14,
+      backgroundColor: 'white',
+    },
+    textPostContent: {
+      minHeight: 48,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: Colors.card,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    textPostBodyMeasure: {
+      width: '100%',
+      maxWidth: TEXT_POST_BODY_MAX_WIDTH,
+      alignSelf: 'center',
+    },
+    textPostBody: {
+      color: Colors.text,
+      fontSize: TEXT_POST_BODY_FONT_SIZE,
+      lineHeight: 17,
+      fontWeight: '400',
+    },
+    textPostSeparator: {
+      height: 1,
+      backgroundColor: Colors.border,
+      marginHorizontal: 16,
+    },
+    textPostFooterCompact: {
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    pollBody: {
+      minHeight: 220,
+      paddingHorizontal: 16,
+      paddingVertical: 18,
+      backgroundColor: Colors.card,
+      justifyContent: 'center',
+    },
+    pollBadge: {
+      alignSelf: 'flex-start',
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 1,
+      color: Colors.primary,
+      marginBottom: 10,
+    },
+    pollQuestion: {
+      color: Colors.text,
+      fontSize: 17,
+      fontWeight: '800',
+      lineHeight: 24,
+      marginBottom: 14,
+    },
+    pollChoicePill: {
+      borderWidth: 1,
+      borderColor: Colors.border,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      marginBottom: 8,
+      backgroundColor: Colors.background,
+    },
+    pollChoiceText: {
+      color: Colors.text,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    pollMeta: {
+      marginTop: 8,
+      color: Colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    playButtonContainer: {
+      position: 'absolute',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    playButtonBlur: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    muteToggleButton: {
+      position: 'absolute',
+      right: 14,
+      bottom: 14,
+      zIndex: 15,
+    },
+    muteToggleBlur: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    },
+    mediaUserOverlay: {
+      position: 'absolute',
+      left: 16,
+      right: 72,
+      top: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      zIndex: 9,
+    },
+    mediaOverlayAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 2,
+      borderColor: 'white',
+    },
+    mediaOverlayTextCol: {
+      flex: 1,
+      minWidth: 0,
+    },
+    mediaOverlayUserLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 2,
+    },
+    mediaOverlayUsername: {
+      color: 'white',
+      fontWeight: '700',
+      fontSize: 16,
+      marginRight: 6,
+      textShadowColor: 'rgba(0,0,0,0.5)',
+      textShadowOffset: { width: 1, height: 1 },
+      textShadowRadius: 2,
+    },
+    mediaOverlayVerifiedBadge: {
+      backgroundColor: Colors.primary,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    mediaOverlayVerifiedCheck: {
+      color: 'white',
+      fontSize: 8,
+      fontWeight: 'bold',
+    },
+    mediaOverlayMeta: {
+      color: 'rgba(255,255,255,0.88)',
+      fontSize: 12,
+      lineHeight: 16,
+      textShadowColor: 'rgba(0,0,0,0.45)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    postMetaSport: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    postMetaTime: {
+      fontSize: 12,
+      fontWeight: '400',
+    },
+    mediaCaptionOverlay: {
+      position: 'absolute',
+      left: 16,
+      right: 56,
+      bottom: 18,
+      zIndex: 9,
+    },
+    mediaOverlayCaption: {
+      color: 'white',
+      fontSize: 14,
+      lineHeight: 20,
+      fontWeight: '400',
+      textShadowColor: 'rgba(0,0,0,0.55)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    footer: {
+      padding: 16,
+    },
+    userInfoRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    userInfoRowSpacer: {
+      flex: 1,
+    },
+    userLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 2,
+      borderColor: Colors.primary,
+    },
+    userName: {
+      color: Colors.text,
+      fontWeight: '700',
+      fontSize: 15,
+    },
+    userMeta: {
+      color: Colors.textSecondary,
+      fontSize: 12,
+      lineHeight: 16,
+    },
+    followButton: {
+      backgroundColor: Colors.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    followButtonText: {
+      color: 'white',
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    moreButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Colors.card,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    captionBlock: {
+      marginBottom: 16,
+    },
+    caption: {
+      color: Colors.text,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    captionTagsLine: {
+      marginTop: 8,
+      color: Colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 18,
+    },
+    captionTagsTightTop: {
+      marginTop: 0,
+    },
+    pollTagsLine: {
+      marginTop: 6,
+      marginBottom: 2,
+    },
+    overlayTagsLine: {
+      marginTop: 8,
+      color: 'rgba(255,255,255,0.95)',
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 18,
+      textShadowColor: 'rgba(0,0,0,0.55)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    actionBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    actionLeft: {
+      flexDirection: 'row',
+      gap: 20,
+    },
+    actionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    actionText: {
+      color: Colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    menuBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    menuSheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: Colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 18,
+    },
+    menuGrabber: {
+      width: 42,
+      height: 5,
+      borderRadius: 999,
+      alignSelf: 'center',
+      backgroundColor: 'rgba(255,255,255,0.25)',
+      marginBottom: 14,
+    },
+    menuDeleteButton: {
+      height: 46,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#EF4444',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: 'rgba(239,68,68,0.08)',
+    },
+    menuDeleteText: {
+      color: '#EF4444',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    menuCancelButton: {
+      marginTop: 10,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: Colors.card,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    menuCancelText: {
+      color: Colors.text,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+  }));
   const mediaItems = useMemo(() => {
     if (post.type === 'text') return [];
     if (post.assets && post.assets.length > 0) return post.assets;
@@ -146,7 +633,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
         <View style={styles.headerOverlayEnd}>
           {post.isLive ? (
             <View style={styles.liveBadge}>
-              <Text style={styles.liveText}>● LIVE</Text>
+              <Text style={styles.liveText}>â— LIVE</Text>
             </View>
           ) : null}
           {showMediaUserOverlay && isOwnPost ? (
@@ -274,7 +761,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
               </View>
             ))}
             <Text style={styles.pollMeta}>
-              {post.poll.durationDays === 1 ? '1 day' : `${post.poll.durationDays} days`} · Tap an option to vote (coming soon)
+              {post.poll.durationDays === 1 ? '1 day' : `${post.poll.durationDays} days`} Â· Tap an option to vote (coming soon)
             </Text>
           </View>
         </>
@@ -338,13 +825,14 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
                     </View>
                   ) : null}
                 </View>
-                <Text style={styles.mediaOverlayMeta} numberOfLines={1}>
-                  <Text style={styles.postMetaSport}>{post.user.sport}</Text>
-                  <Text style={styles.postMetaTime}> • {relativeTime}</Text>
-                  {locationLabel ? (
-                    <Text style={styles.postMetaTime}> • {locationLabel}</Text>
-                  ) : null}
-                </Text>
+                <PostMetaSubline
+                  sport={post.user.sport}
+                  time={relativeTime}
+                  location={locationLabel}
+                  containerStyle={styles.mediaOverlayMeta}
+                  sportEmphasisStyle={styles.postMetaSport}
+                  secondaryStyle={styles.postMetaTime}
+                />
               </View>
             </View>
           ) : null}
@@ -395,13 +883,14 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
                 <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
                 <View>
                   <Text style={styles.userName}>@{post.user.username}</Text>
-                  <Text style={styles.userMeta} numberOfLines={1}>
-                    <Text style={styles.postMetaSport}>{post.user.sport}</Text>
-                    <Text style={styles.postMetaTime}> • {relativeTime}</Text>
-                    {locationLabel ? (
-                      <Text style={styles.postMetaTime}> • {locationLabel}</Text>
-                    ) : null}
-                  </Text>
+                  <PostMetaSubline
+                    sport={post.user.sport}
+                    time={relativeTime}
+                    location={locationLabel}
+                    containerStyle={styles.userMeta}
+                    sportEmphasisStyle={styles.postMetaSport}
+                    secondaryStyle={styles.postMetaTime}
+                  />
                 </View>
               </View>
             ) : (
@@ -503,456 +992,3 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.card,
-    borderRadius: 24,
-    marginBottom: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  headerOverlay: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    zIndex: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerOverlayStart: {
-    flexShrink: 1,
-    maxWidth: '62%',
-  },
-  headerOverlayEnd: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
-  },
-  mediaOverlayMoreButton: {
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  mediaOverlayMoreBlur: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
-  badgeContainer: {
-    borderRadius: 100,
-    overflow: 'hidden',
-  },
-  verifiedBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 100,
-  },
-  verifiedText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  liveBadge: {
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  liveText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  contentContainer: {
-    width: '100%',
-    aspectRatio: 4 / 5,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  media: {
-    width: '100%',
-    height: '100%',
-  },
-  mediaPager: {
-    width: '100%',
-    height: '100%',
-  },
-  carouselDots: {
-    position: 'absolute',
-    bottom: 12,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    zIndex: 12,
-  },
-  carouselDotsAboveCaption: {
-    bottom: 108,
-  },
-  carouselDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.45)',
-  },
-  carouselDotActive: {
-    width: 14,
-    backgroundColor: 'white',
-  },
-  textPostContent: {
-    minHeight: 48,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: Colors.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  textPostBodyMeasure: {
-    width: '100%',
-    maxWidth: TEXT_POST_BODY_MAX_WIDTH,
-    alignSelf: 'center',
-  },
-  textPostBody: {
-    color: Colors.text,
-    fontSize: TEXT_POST_BODY_FONT_SIZE,
-    lineHeight: 17,
-    fontWeight: '400',
-  },
-  textPostSeparator: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: 16,
-  },
-  textPostFooterCompact: {
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
-  pollBody: {
-    minHeight: 220,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    backgroundColor: Colors.card,
-    justifyContent: 'center',
-  },
-  pollBadge: {
-    alignSelf: 'flex-start',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: Colors.primary,
-    marginBottom: 10,
-  },
-  pollQuestion: {
-    color: Colors.text,
-    fontSize: 17,
-    fontWeight: '800',
-    lineHeight: 24,
-    marginBottom: 14,
-  },
-  pollChoicePill: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 8,
-    backgroundColor: Colors.background,
-  },
-  pollChoiceText: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  pollMeta: {
-    marginTop: 8,
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  playButtonContainer: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playButtonBlur: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  muteToggleButton: {
-    position: 'absolute',
-    right: 14,
-    bottom: 14,
-    zIndex: 15,
-  },
-  muteToggleBlur: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  mediaUserOverlay: {
-    position: 'absolute',
-    left: 16,
-    right: 72,
-    top: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    zIndex: 9,
-  },
-  mediaOverlayAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  mediaOverlayTextCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  mediaOverlayUserLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  mediaOverlayUsername: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 16,
-    marginRight: 6,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  mediaOverlayVerifiedBadge: {
-    backgroundColor: Colors.primary,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mediaOverlayVerifiedCheck: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-  },
-  mediaOverlayMeta: {
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 12,
-    lineHeight: 16,
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  /** Shared sport / create-time row (media overlay + footer) */
-  postMetaSport: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  postMetaTime: {
-    fontSize: 12,
-    fontWeight: '400',
-  },
-  mediaCaptionOverlay: {
-    position: 'absolute',
-    left: 16,
-    right: 56,
-    bottom: 18,
-    zIndex: 9,
-  },
-  mediaOverlayCaption: {
-    color: 'white',
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '400',
-    textShadowColor: 'rgba(0,0,0,0.55)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  footer: {
-    padding: 16,
-  },
-  userInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  userInfoRowSpacer: {
-    flex: 1,
-  },
-  userLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-  },
-  userName: {
-    color: Colors.text,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  userMeta: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  followButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  followButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  moreButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  captionBlock: {
-    marginBottom: 16,
-  },
-  caption: {
-    color: Colors.text,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  captionTagsLine: {
-    marginTop: 8,
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  captionTagsTightTop: {
-    marginTop: 0,
-  },
-  pollTagsLine: {
-    marginTop: 6,
-    marginBottom: 2,
-  },
-  overlayTagsLine: {
-    marginTop: 8,
-    color: 'rgba(255,255,255,0.95)',
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
-    textShadowColor: 'rgba(0,0,0,0.55)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  actionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  actionLeft: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  actionText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  menuBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  menuSheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 18,
-  },
-  menuGrabber: {
-    width: 42,
-    height: 5,
-    borderRadius: 999,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    marginBottom: 14,
-  },
-  menuDeleteButton: {
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(239,68,68,0.08)',
-  },
-  menuDeleteText: {
-    color: '#EF4444',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  menuCancelButton: {
-    marginTop: 10,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuCancelText: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
-

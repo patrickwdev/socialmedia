@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ViewStyle } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { applyThemeMode, Colors, type ThemeMode } from '@/constants/Colors';
@@ -76,4 +76,14 @@ export function useTheme(): ThemeContextValue {
 export function useThemeBackgroundStyle(): ViewStyle {
   const { theme } = useTheme();
   return useMemo(() => ({ backgroundColor: Colors.background }), [theme]);
+}
+
+/**
+ * Recreates a StyleSheet when `theme` changes so `Colors.*` references stay in sync.
+ * (Module-level `StyleSheet.create({ color: Colors.text })` captures light palette forever.)
+ */
+/** Return type is loose: `StyleSheet.create` widens style literals vs `ViewStyle` / `TextStyle`. */
+export function useThemedStylesheet(factory: () => Record<string, unknown>): any {
+  const { theme } = useTheme();
+  return useMemo(() => StyleSheet.create(factory() as never), [theme]);
 }
