@@ -26,6 +26,8 @@ export interface Post {
   caption: string;
   likes: number;
   comments: number;
+  /** Repost count; optional until persisted in backend */
+  reposts?: number;
   shares: number;
   timeAgo: string;
   /** ISO timestamp for live relative time on the feed */
@@ -34,8 +36,10 @@ export interface Post {
   type: 'video' | 'image' | 'text' | 'poll';
   postType?: 'post' | 'clips';
   /** Profile Clips tab: which sub-grid this clip belongs to (video + postType clips). */
-  clipsSource?: 'highlights' | 'grinds';
+  clipsSource?: 'highlights' | 'grinds' | 'clips';
   poll?: PostPoll;
+  /** Optional place label attached at compose time (e.g. city or venue). */
+  location?: string;
 }
 
 export interface PostAsset {
@@ -101,6 +105,7 @@ export const generatePosts = (count: number): Post[] => {
       caption: faker.lorem.sentence() + ' ' + faker.helpers.arrayElement(['🔥', '💪', '🏆', '🏀', '⚡️']),
       likes: faker.number.int({ min: 100, max: 50000 }),
       comments: faker.number.int({ min: 10, max: 2000 }),
+      reposts: faker.number.int({ min: 0, max: 500 }),
       shares: faker.number.int({ min: 5, max: 1000 }),
       timeAgo: '',
       createdAt,

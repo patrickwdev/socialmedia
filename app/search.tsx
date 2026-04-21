@@ -13,13 +13,15 @@ import {
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Search } from 'lucide-react-native';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 export default function SearchScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const [query, setQuery] = useState('');
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
           <ChevronLeft size={28} color={Colors.primary} />

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView, ScrollView, Platform, StatusBar } from 'react-native';
-import { Colors } from '@/constants/Colors';
+import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronDown, Link as LinkIcon, Upload, Building2, Briefcase } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 export default function ScoutVerificationScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const [orgType, setOrgType] = useState<string>('Professional Team');
   const [orgName, setOrgName] = useState('');
@@ -20,7 +22,7 @@ export default function ScoutVerificationScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft size={28} color={Colors.text} />
@@ -139,7 +141,7 @@ export default function ScoutVerificationScreen() {
         <View style={styles.footer}>
             <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
                 <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -249,7 +251,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   typeCardActive: {
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderColor: Colors.primary,
   },
   typeText: {
@@ -384,3 +386,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+

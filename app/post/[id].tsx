@@ -21,6 +21,7 @@ import { PostMedia } from '@/components/PostMedia';
 import type { Post } from '@/data/mock';
 import { faker } from '@faker-js/faker';
 import { useRelativePostTime } from '@/hooks/useRelativePostTime';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 type CommentItem = {
   id: string;
@@ -37,6 +38,7 @@ function formatCount(n: number) {
 }
 
 export default function PostDetailsScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const { posts } = useFeedPosts();
@@ -97,7 +99,7 @@ export default function PostDetailsScreen() {
 
   if (!post) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, bgStyle]} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button">
             <ArrowLeft size={22} color="white" />
@@ -113,7 +115,7 @@ export default function PostDetailsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, bgStyle]} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button">
           <ArrowLeft size={22} color="white" />
@@ -244,8 +246,8 @@ export default function PostDetailsScreen() {
           <View style={styles.backdrop} />
         </Pressable>
 
-        <Animated.View style={[styles.commentsPanel, { height: PANEL_HEIGHT, transform: [{ translateY: slideAnim }] }]}>
-          <SafeAreaView style={{ flex: 1 }}>
+        <Animated.View style={[styles.commentsPanel, bgStyle, { height: PANEL_HEIGHT, transform: [{ translateY: slideAnim }] }]}>
+          <SafeAreaView style={[bgStyle, { flex: 1 }]}>
             <View style={styles.commentsHeader}>
               <View style={styles.grabber} />
               <View style={styles.commentsHeaderRow}>

@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, MessageCircle, MoreHorizontal, Plus, Music, Share2 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { useFeedPosts } from '@/context/FeedPostsContext';
+import { useTheme, useThemeBackgroundStyle } from '@/context/ThemeContext';
 import { PostMedia } from '@/components/PostMedia';
 import type { Post } from '@/data/mock';
 
@@ -20,6 +21,8 @@ export default function ClipsFeed({
 }) {
   const isTabFocused = useIsFocused();
   const tabBarHeight = useBottomTabBarHeight();
+  const { theme } = useTheme();
+  const bgStyle = useThemeBackgroundStyle();
 
   const screenHeight =
     Platform.OS === 'ios'
@@ -66,7 +69,7 @@ export default function ClipsFeed({
     <TouchableOpacity
       activeOpacity={0.95}
       onPress={() => onPressClip?.(item.id)}
-      style={[styles.item, { height: screenHeight }]}
+      style={[styles.item, bgStyle, { height: screenHeight }]}
     >
       <PostMedia
         uri={item.content}
@@ -140,14 +143,18 @@ export default function ClipsFeed({
       </View>
     </TouchableOpacity>
     ),
-    [isTabFocused, onPressClip, screenHeight, visibleClipIds]
+    [isTabFocused, onPressClip, screenHeight, visibleClipIds, bgStyle]
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <View style={[styles.container, bgStyle]}>
+      <StatusBar
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+        translucent
+        backgroundColor="transparent"
+      />
       {clipsPosts.length === 0 ? (
-        <View style={styles.emptyState}>
+        <View style={[styles.emptyState, bgStyle]}>
           <Text style={styles.emptyTitle}>No clips yet</Text>
           <Text style={styles.emptyText}>Post from Highlights or Grinds to publish your first clip.</Text>
         </View>
@@ -174,13 +181,11 @@ export default function ClipsFeed({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
   },
   item: {
     width: '100%',
     position: 'relative',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
   },
   media: {
     width: '100%',
@@ -305,10 +310,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
     zIndex: 2,
-    backgroundColor: 'black',
   },
   emptyTitle: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 20,
     fontWeight: '700',
   },

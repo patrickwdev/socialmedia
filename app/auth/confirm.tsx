@@ -11,13 +11,14 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import { Colors } from '@/constants/Colors';
+import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Mail } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { getSignupEmailRedirectUrl, isEmailVerified } from '@/lib/emailConfirmation';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const RESEND_COOLDOWN_SEC = 60;
 
@@ -35,6 +36,7 @@ function normalizeEmailParam(v: string | string[] | undefined): string {
  *   (see console in __DEV__ or `lib/emailConfirmation.ts`; e.g. myapp://auth/confirm for release builds)
  */
 export default function EmailConfirmationScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const { email: emailParam } = useLocalSearchParams<{ email?: string | string[] }>();
   const initialEmail = useMemo(() => normalizeEmailParam(emailParam).trim(), [emailParam]);
@@ -96,7 +98,7 @@ export default function EmailConfirmationScreen() {
   }, [displayEmail]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -146,7 +148,7 @@ export default function EmailConfirmationScreen() {
             disabled={resendLoading || !displayEmail || resendCooldownSec > 0}
           >
             <LinearGradient
-              colors={['#3B82F6', '#2563EB']}
+              colors={primaryButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientButton}
@@ -319,3 +321,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Modal, Pressable, Image } from 'react-native';
-import { Colors } from '@/constants/Colors';
+import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { useRouter, Redirect } from 'expo-router';
 import { ChevronLeft, User, Mail, Lock, AtSign, ChevronDown, Upload, Link as LinkIcon, Building2, Briefcase, Camera, Image as ImageIcon } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { isEmailVerified } from '@/lib/emailConfirmation';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 import { savePendingSignupMedia } from '@/lib/pendingSignupMedia';
 import { uploadUserProfileImage } from '@/lib/profileMediaUpload';
 
@@ -80,6 +81,7 @@ export default function SignUpScreen() {
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const bgStyle = useThemeBackgroundStyle();
 
   const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
 
@@ -346,7 +348,7 @@ export default function SignUpScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -434,7 +436,7 @@ export default function SignUpScreen() {
                   }}
                 >
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -700,7 +702,7 @@ export default function SignUpScreen() {
                   }}
                 >
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -750,7 +752,7 @@ export default function SignUpScreen() {
                   disabled={checkingEmail}
                 >
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -803,7 +805,7 @@ export default function SignUpScreen() {
                 </View>
                 <TouchableOpacity style={styles.signUpButton} onPress={handleContinueFromName}>
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -839,7 +841,7 @@ export default function SignUpScreen() {
                 </View>
                 <TouchableOpacity style={styles.signUpButton} onPress={handleContinueFromProfileName}>
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -880,7 +882,7 @@ export default function SignUpScreen() {
                   disabled={checkingUsername}
                 >
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -944,7 +946,7 @@ export default function SignUpScreen() {
                   activeOpacity={profileImageUri ? 0.8 : 1}
                 >
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -1004,7 +1006,7 @@ export default function SignUpScreen() {
                   activeOpacity={bannerImageUri ? 0.8 : 1}
                 >
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -1040,7 +1042,7 @@ export default function SignUpScreen() {
                 </View>
                 <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp} disabled={loading}>
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -1146,7 +1148,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   dropdownOptionActive: {
-    backgroundColor: 'rgba(37, 99, 235, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
     borderColor: Colors.primary,
   },
@@ -1174,7 +1176,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   verificationCardActive: {
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderColor: Colors.primary,
   },
   verificationCardText: {
@@ -1420,3 +1422,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
+

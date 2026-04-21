@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, BadgeCheck, Plus, Trash2, User } from 'lucide-react-native';
 import { uploadUserProfileImage } from '@/lib/profileMediaUpload';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const AVATARS_BUCKET = 'avatars';
 const BANNERS_BUCKET = 'banners';
@@ -48,6 +49,19 @@ const emptyLink = (): ProfileLink => ({
   title: '',
   url: '',
 });
+
+function isValidHttpsProfileLinkUrl(raw: string): boolean {
+  const s = raw.trim();
+  if (!s) return false;
+  try {
+    const parsed = new URL(s);
+    if (parsed.protocol !== 'https:') return false;
+    if (!parsed.hostname) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 type UserMetadata = {
   role?: string;
@@ -101,6 +115,7 @@ export default function EditProfileScreen() {
   const [editPanelMultiline, setEditPanelMultiline] = useState(false);
   const [editPanelPlaceholder, setEditPanelPlaceholder] = useState('');
   const editPanelSlideAnim = useRef(new Animated.Value(EDIT_PANEL_HEIGHT)).current;
+  const bgStyle = useThemeBackgroundStyle();
 
   useEffect(() => {
     if (profile) {
@@ -224,6 +239,19 @@ export default function EditProfileScreen() {
       let avatarUrlToSave: string | undefined;
       let bannerUrlToSave: string | undefined;
 
+      for (const link of links) {
+        const hasTitle = link.title.trim().length > 0;
+        const hasUrl = link.url.trim().length > 0;
+        if (!hasTitle && !hasUrl) continue;
+        if (!isValidHttpsProfileLinkUrl(link.url)) {
+          setSaveError(
+            'Each link must be a valid URL that starts with https:// (for example https://example.com).'
+          );
+          setSaving(false);
+          return;
+        }
+      }
+
       if (profileImageUri) {
         if (profileImageUri.startsWith('http')) {
           avatarUrlToSave = profileImageUri;
@@ -335,14 +363,14 @@ export default function EditProfileScreen() {
 
   if (loading || !profile) {
     return (
-      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView style={[styles.container, bgStyle, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -436,7 +464,7 @@ export default function EditProfileScreen() {
                   <Text style={[styles.fieldRowValue, !location && styles.fieldRowPlaceholder]} numberOfLines={1}>{location || 'City, State or Country'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.label}>Links</Text>
-                <Text style={styles.linksHint}>Add any links (website, social, etc.)</Text>
+                <Text style={styles.linksHint}>Add any links (website, social, etc.). URL must be valid and start with https://</Text>
                 {links.map((link) => (
                   <View key={link.id} style={styles.linkRow}>
                     <View style={styles.linkInputs}>
@@ -498,7 +526,7 @@ export default function EditProfileScreen() {
                   <Text style={[styles.fieldRowValue, !location && styles.fieldRowPlaceholder]} numberOfLines={1}>{location || 'City, State or Country'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.label}>Links</Text>
-                <Text style={styles.linksHint}>Add or remove links (label + URL)</Text>
+                <Text style={styles.linksHint}>Add or remove links (label + URL). URL must be valid and start with https://</Text>
                 {links.map((link) => (
                   <View key={link.id} style={styles.linkRow}>
                     <View style={styles.linkInputs}>
@@ -560,7 +588,7 @@ export default function EditProfileScreen() {
                   <Text style={[styles.fieldRowValue, !location && styles.fieldRowPlaceholder]} numberOfLines={1}>{location || 'City, State or Country'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.label}>Links</Text>
-                <Text style={styles.linksHint}>Add any links (website, social, merch, etc.)</Text>
+                <Text style={styles.linksHint}>Add any links (website, social, merch, etc.). URL must be valid and start with https://</Text>
                 {links.map((link) => (
                   <View key={link.id} style={styles.linkRow}>
                     <View style={styles.linkInputs}>
@@ -621,6 +649,7 @@ export default function EditProfileScreen() {
         <Animated.View
           style={[
             styles.editPanel,
+            bgStyle,
             {
               height: EDIT_PANEL_HEIGHT,
               transform: [{ translateY: editPanelSlideAnim }],

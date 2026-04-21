@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
-import { Colors } from '@/constants/Colors';
+import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { useRouter, Redirect, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Lock, Eye, EyeOff, User } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { isEmailVerified } from '@/lib/emailConfirmation';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 function looksLikeEmail(value: string): boolean {
   return value.includes('@');
@@ -22,6 +23,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const bgStyle = useThemeBackgroundStyle();
 
   const handleLogin = async () => {
     setError(null);
@@ -72,7 +74,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -147,7 +149,7 @@ export default function LoginScreen() {
 
             <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
                 <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -355,3 +357,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+

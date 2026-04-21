@@ -11,11 +11,12 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Colors } from '@/constants/Colors';
+import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, KeyRound, Mail } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 function normalizeParam(v: string | string[] | undefined): string {
   if (v == null) return '';
@@ -23,6 +24,7 @@ function normalizeParam(v: string | string[] | undefined): string {
 }
 
 export default function ResetCodeScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const { email: emailFromQuery } = useLocalSearchParams<{ email?: string | string[] }>();
   const initialEmail = useMemo(() => normalizeParam(emailFromQuery).trim(), [emailFromQuery]);
@@ -71,7 +73,7 @@ export default function ResetCodeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -133,7 +135,7 @@ export default function ResetCodeScreen() {
 
             <TouchableOpacity style={styles.primaryButton} onPress={handleVerify} disabled={loading}>
               <LinearGradient
-                colors={['#3B82F6', '#2563EB']}
+                colors={primaryButtonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.gradientButton}
@@ -246,3 +248,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+

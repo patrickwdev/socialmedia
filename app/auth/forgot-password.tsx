@@ -11,12 +11,13 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Colors } from '@/constants/Colors';
+import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Mail } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { getPasswordRecoveryRedirectUrl } from '@/lib/passwordRecovery';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 function mapResetEmailError(message: string): string {
   const m = message.toLowerCase();
@@ -33,6 +34,7 @@ function mapResetEmailError(message: string): string {
 }
 
 export default function ForgotPasswordScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,7 +67,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -130,7 +132,7 @@ export default function ForgotPasswordScreen() {
 
               <TouchableOpacity style={styles.primaryButton} onPress={handleSend} disabled={loading}>
                 <LinearGradient
-                  colors={['#3B82F6', '#2563EB']}
+                  colors={primaryButtonGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.gradientButton}
@@ -300,3 +302,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

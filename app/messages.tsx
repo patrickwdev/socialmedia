@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, Platform, StatusBar, TouchableOpacity } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 import { ChevronLeft, MessageCircle } from 'lucide-react-native';
 
 type MessagesScreenProps = {
@@ -10,10 +11,11 @@ type MessagesScreenProps = {
 };
 
 export default function MessagesScreen({ showBackButton = true }: MessagesScreenProps) {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         {showBackButton ? (
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">

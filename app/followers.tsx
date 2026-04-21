@@ -15,6 +15,7 @@ import { Colors } from '@/constants/Colors';
 import { MOCK_FOLLOWERS, MOCK_FANS, MOCK_FOLLOWING, type FollowerItem } from '@/data/mock';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, BadgeCheck } from 'lucide-react-native';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ const LIST_CONFIG: Record<ListType, { title: string; data: FollowerItem[] }> = {
 const TABS: ListType[] = ['following', 'fans', 'followers'];
 
 export default function ListScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const { list } = useLocalSearchParams<{ list?: string }>();
   const initialTab = (list === 'fans' || list === 'following' ? list : 'followers') as ListType;
@@ -52,7 +54,7 @@ export default function ListScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft size={28} color={Colors.primary} />

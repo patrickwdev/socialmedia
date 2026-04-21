@@ -3,6 +3,7 @@ import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Bell, CheckCircle2 } from 'lucide-react-native';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 type NotificationItem = {
   id: string;
@@ -37,6 +38,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export default function NotificationsScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
   const unreadCount = useMemo(() => notifications.filter((n) => n.unread).length, [notifications]);
@@ -69,7 +71,7 @@ export default function NotificationsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, bgStyle]} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
         <Text style={styles.headerMeta}>{unreadCount} unread</Text>

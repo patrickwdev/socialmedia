@@ -17,10 +17,12 @@ import { Colors } from '@/constants/Colors';
 import { CURRENT_USER } from '@/data/mock';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Share2, Link } from 'lucide-react-native';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const PROFILE_URL = `https://championhighlights.com/profile/${CURRENT_USER.username}`;
 
 export default function ShareProfileScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
 
   const handleShareProfile = async () => {
@@ -66,7 +68,7 @@ export default function ShareProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft size={28} color={Colors.primary} />

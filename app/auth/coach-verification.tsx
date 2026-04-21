@@ -4,10 +4,12 @@ import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Link as LinkIcon, Upload, Building2, Briefcase } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const COACH_ACCENT = '#059669';
 
 export default function CoachVerificationScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const [orgType, setOrgType] = useState<string>('High School');
   const [orgName, setOrgName] = useState('');
@@ -38,7 +40,7 @@ export default function CoachVerificationScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft size={28} color={Colors.text} />

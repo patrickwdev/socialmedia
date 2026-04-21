@@ -19,15 +19,17 @@ import { useCreatePost } from '@/context/CreatePostContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 export default function HomeScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const isTabFocused = useIsFocused();
   const { open, visible: isCreatePostOpen } = useCreatePost();
   const { posts } = useFeedPosts();
   const { user } = useAuth();
   const role = (user?.user_metadata as { role?: string } | undefined)?.role;
-  const canCreatePost = role !== 'fan';
+  const canCreatePost = role !== 'fan' && role !== 'scout';
   const isFan = role === 'fan';
   const [visiblePostIds, setVisiblePostIds] = useState<string[]>([]);
   const viewabilityConfig = useMemo(
@@ -60,7 +62,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
             <Text style={styles.headerTitle}>Clips</Text>

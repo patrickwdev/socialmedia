@@ -31,6 +31,7 @@ export interface Database {
           is_live: boolean;
           user_snapshot: Json;
           created_at: string;
+          location: string | null;
         };
         Insert: {
           id?: string;
@@ -48,6 +49,7 @@ export interface Database {
           is_live?: boolean;
           user_snapshot: Json;
           created_at?: string;
+          location?: string | null;
         };
         Update: {
           caption?: string;
@@ -62,6 +64,7 @@ export interface Database {
           shares?: number;
           is_live?: boolean;
           user_snapshot?: Json;
+          location?: string | null;
         };
       };
       profiles: {

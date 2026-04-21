@@ -23,11 +23,14 @@ import {
   MessageCircle,
   BadgeCheck,
   Users,
+  Moon,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 export default function SettingsScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const { signOut, user } = useAuth();
   const role = (user?.user_metadata as { role?: string } | undefined)?.role;
@@ -56,7 +59,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft size={28} color={Colors.primary} />
@@ -70,6 +73,14 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>ACCOUNT</Text>
           {renderSettingItem(<Shield size={20} color={Colors.primary} />, "Account Security")}
+          {renderSettingItem(<Bookmark size={20} color={Colors.primary} />, "Bookmarks")}
+          {renderSettingItem(
+            <Moon size={20} color={Colors.primary} />,
+            'Dark Mode',
+            true,
+            undefined,
+            () => router.push('/dark-mode')
+          )}
           {renderSettingItem(<Bell size={20} color={Colors.primary} />, "Notification Preferences")}
           {renderSettingItem(<Lock size={20} color={Colors.primary} />, "Privacy Settings")}
           {isScout
@@ -142,9 +153,11 @@ export default function SettingsScreen() {
             )}
         </View>
 
-        {/* Athlete Hub Section */}
+        {/* Athlete Hub Section (Scout Hub label when logged in as scout) */}
         <View style={styles.section}>
-          <Text style={[styles.sectionHeader, { color: Colors.accent }]}>ATHLETE HUB</Text>
+          <Text style={[styles.sectionHeader, { color: Colors.accent }]}>
+            {isScout ? 'SCOUT HUB' : 'ATHLETE HUB'}
+          </Text>
           <LinearGradient
             colors={['rgba(37, 99, 235, 0.3)', 'rgba(37, 99, 235, 0.1)']}
             style={styles.athleteHubContainer}
@@ -157,7 +170,7 @@ export default function SettingsScreen() {
                         <LayoutGrid size={20} color="white" />
                     </View>
                     <View>
-                        <Text style={styles.settingLabel}>Athlete Dashboard</Text>
+                        <Text style={styles.settingLabel}>{isScout ? 'Scout Dashboard' : 'Athlete Dashboard'}</Text>
                         <Text style={styles.hubSubtitle}>EXCLUSIVE HIGHLIGHT TOOLS</Text>
                     </View>
                 </View>

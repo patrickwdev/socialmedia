@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
-import { Colors } from '@/constants/Colors';
+import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Redirect } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 import { isEmailVerified } from '@/lib/emailConfirmation';
 
 const { width, height } = Dimensions.get('window');
@@ -12,6 +13,7 @@ const { width, height } = Dimensions.get('window');
 export default function WelcomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const bgStyle = useThemeBackgroundStyle();
 
   if (user && isEmailVerified(user)) {
     return <Redirect href="/(tabs)" />;
@@ -21,13 +23,13 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, bgStyle]}>
       <Image 
         source={{ uri: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1000&auto=format&fit=crop' }} 
         style={styles.backgroundImage} 
       />
       <LinearGradient
-        colors={['transparent', 'rgba(11, 17, 33, 0.8)', Colors.background]}
+        colors={['transparent', 'rgba(15, 23, 42, 0.88)', '#0F172A']}
         locations={[0, 0.4, 0.8]}
         style={styles.gradient}
       />
@@ -49,7 +51,7 @@ export default function WelcomeScreen() {
                 onPress={() => router.push('/auth/signup')}
             >
                 <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -178,3 +180,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

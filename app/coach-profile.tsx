@@ -26,8 +26,10 @@ import {
   MOCK_SUGGESTED,
   MOCK_CONNECT_PEOPLE,
   type FollowerItem,
+  type Post,
 } from '@/data/mock';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import {
   ArrowLeft,
   MoreHorizontal,
@@ -36,7 +38,7 @@ import {
   LayoutGrid,
   Video,
   Repeat,
-  Bookmark,
+  Film,
   Link as LinkIcon,
   MapPin,
   MessageCircle,
@@ -49,11 +51,15 @@ import {
   UserPlus,
   BadgeCheck,
 } from 'lucide-react-native';
-import { Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
+import { useFeedPosts } from '@/context/FeedPostsContext';
 import { useProfile } from '@/hooks/useProfile';
+import { FeedCard } from '@/components/FeedCard';
+import { ProfileLinkDisplay } from '@/components/ProfileLinkDisplay';
+import { PostMedia } from '@/components/PostMedia';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 type ProfileLink = { id?: string; title?: string; url?: string };
 
@@ -72,8 +78,21 @@ const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1560250097-0b93528c311
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800&auto=format&fit=crop';
 
 const { width, height } = Dimensions.get('window');
+const COLUMN_WIDTH = (width - 32 - 20) / 3;
 const CONNECTIONS_PANEL_HEIGHT = height * 0.85;
 const SHARE_PANEL_HEIGHT = Math.min(height * 0.56, 440);
+
+function coachPostGridMedia(post: Post): { uri: string; mediaType: 'video' | 'image' } | null {
+  const first = post.assets?.[0];
+  if (first?.uri?.trim()) {
+    return { uri: first.uri.trim(), mediaType: first.type === 'video' ? 'video' : 'image' };
+  }
+  const uri = post.content?.trim();
+  if (!uri) return null;
+  if (post.type === 'video') return { uri, mediaType: 'video' };
+  if (post.type === 'image') return { uri, mediaType: 'image' };
+  return null;
+}
 
 type CoachConnectionsTab = 'followers' | 'following' | 'suggested';
 const COACH_CONNECTIONS_CONFIG: Record<
@@ -86,12 +105,14 @@ const COACH_CONNECTIONS_CONFIG: Record<
 };
 const COACH_CONNECTIONS_TABS: CoachConnectionsTab[] = ['followers', 'following', 'suggested'];
 
-type CoachTab = 'posts' | 'reels' | 'reposts' | 'saved';
+type CoachTab = 'posts' | 'media' | 'reposts';
 
 export default function CoachProfileScreen() {
   const router = useRouter();
+  const isScreenFocused = useIsFocused();
   const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
+  const { posts: feedPosts } = useFeedPosts();
   const meta = (user?.user_metadata || {}) as CoachMetadata & { profile_name?: string; full_name?: string };
   const [activeTab, setActiveTab] = useState<CoachTab>('posts');
   const [showConnectionsPanel, setShowConnectionsPanel] = useState(false);
@@ -103,6 +124,7 @@ export default function CoachProfileScreen() {
   const connectPanelSlideAnim = useRef(new Animated.Value(CONNECTIONS_PANEL_HEIGHT)).current;
   const [showSharePanel, setShowSharePanel] = useState(false);
   const sharePanelSlideAnim = useRef(new Animated.Value(SHARE_PANEL_HEIGHT)).current;
+  const bgStyle = useThemeBackgroundStyle();
 
   useEffect(() => {
     if (showConnectionsPanel) {
@@ -156,6 +178,21 @@ export default function CoachProfileScreen() {
         item.name.toLowerCase().includes(q) || item.username.toLowerCase().includes(q)
     );
   }, [connectionsTab, connectionsSearch]);
+
+  const myCoachPosts = useMemo(() => {
+    if (!profile?.id) return [];
+    return feedPosts
+      .filter((p) => p.user.id === profile.id)
+      .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+  }, [feedPosts, profile?.id]);
+
+  const myCoachMediaPosts = useMemo(
+    () => myCoachPosts.filter((p) => coachPostGridMedia(p) !== null),
+    [myCoachPosts]
+  );
+
+  const coachPostCountLabel =
+    myCoachPosts.length >= 10000 ? `${(myCoachPosts.length / 1000).toFixed(1)}k` : String(myCoachPosts.length);
 
   const openConnectionsPanel = (tab: CoachConnectionsTab) => {
     setConnectionsTab(tab);
@@ -229,20 +266,6 @@ export default function CoachProfileScreen() {
     displayLink && /^https?:\/\//i.test(displayLink) ? displayLink : displayLink ? `https://${displayLink}` : '';
   const showProfileDetails = !!(profile?.bio || profile?.location || displayLink);
 
-  const openDisplayLink = async () => {
-    if (!normalizedDisplayLink) return;
-    try {
-      const supported = await Linking.canOpenURL(normalizedDisplayLink);
-      if (supported) {
-        await Linking.openURL(normalizedDisplayLink);
-      } else {
-        Alert.alert('Invalid link', 'This link cannot be opened.');
-      }
-    } catch {
-      Alert.alert('Error', 'Could not open link.');
-    }
-  };
-
   const shareProfileUrl = useMemo(() => {
     const u = username?.trim();
     if (!u) return '';
@@ -302,14 +325,14 @@ export default function CoachProfileScreen() {
   // default banner/avatar or stale layout; refetches after edit-profile don’t set loading (see useProfile).
   if (profileLoading) {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View style={[styles.container, bgStyle, styles.centered]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, bgStyle]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Cover - match athlete */}
         <View style={styles.coverContainer}>
@@ -344,7 +367,7 @@ export default function CoachProfileScreen() {
             </View>
             <View style={styles.actionButtons}>
               <TouchableOpacity style={styles.followButton} onPress={openSharePanel} activeOpacity={0.7}>
-                <Share2 size={20} color="white" />
+                <Share2 size={20} color={Colors.text} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.messageButton} onPress={() => router.push('/edit-profile')}>
                 <Pencil size={20} color={Colors.text} />
@@ -376,14 +399,13 @@ export default function CoachProfileScreen() {
                 ) : null}
                 {displayLink ? (
                   <View style={profile?.location ? styles.linkFieldBelowLocation : undefined}>
-                    <TouchableOpacity
-                      style={styles.profileLinkRow}
-                      activeOpacity={0.7}
-                      onPress={openDisplayLink}
-                    >
-                      <LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />
-                      <Text style={styles.profileLinkText} numberOfLines={1}>{displayLink}</Text>
-                    </TouchableOpacity>
+                    <ProfileLinkDisplay
+                      displayUrl={displayLink}
+                      normalizedHref={normalizedDisplayLink}
+                      icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />}
+                      rowStyle={styles.profileLinkRow}
+                      textStyle={styles.profileLinkText}
+                    />
                   </View>
                 ) : null}
               </View>
@@ -393,7 +415,7 @@ export default function CoachProfileScreen() {
           {/* Stats - posts, followers, following, liked */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: Colors.text }]}>0</Text>
+              <Text style={[styles.statValue, { color: Colors.text }]}>{coachPostCountLabel}</Text>
               <Text style={styles.statLabel}>POSTS</Text>
             </View>
             <TouchableOpacity
@@ -430,13 +452,13 @@ export default function CoachProfileScreen() {
               {activeTab === 'posts' && <View style={styles.activeLine} />}
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'reels' && styles.activeTab]}
-              onPress={() => setActiveTab('reels')}
+              style={[styles.tab, activeTab === 'media' && styles.activeTab]}
+              onPress={() => setActiveTab('media')}
               activeOpacity={0.7}
             >
-              <Video size={24} color={activeTab === 'reels' ? Colors.primary : Colors.textSecondary} />
-              <Text style={[styles.tabLabel, activeTab === 'reels' && styles.activeTabLabel]}>REELS</Text>
-              {activeTab === 'reels' && <View style={styles.activeLine} />}
+              <Video size={24} color={activeTab === 'media' ? Colors.primary : Colors.textSecondary} />
+              <Text style={[styles.tabLabel, activeTab === 'media' && styles.activeTabLabel]}>MEDIA</Text>
+              {activeTab === 'media' && <View style={styles.activeLine} />}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'reposts' && styles.activeTab]}
@@ -447,66 +469,74 @@ export default function CoachProfileScreen() {
               <Text style={[styles.tabLabel, activeTab === 'reposts' && styles.activeTabLabel]}>REPOSTS</Text>
               {activeTab === 'reposts' && <View style={styles.activeLine} />}
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'saved' && styles.activeTab]}
-              onPress={() => setActiveTab('saved')}
-              activeOpacity={0.7}
-            >
-              <Bookmark size={24} color={activeTab === 'saved' ? Colors.primary : Colors.textSecondary} />
-              <Text style={[styles.tabLabel, activeTab === 'saved' && styles.activeTabLabel]}>SAVED</Text>
-              {activeTab === 'saved' && <View style={styles.activeLine} />}
-            </TouchableOpacity>
           </View>
 
           {/* Tab content */}
           {activeTab === 'posts' && (
             <View style={styles.tabContent}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Posts</Text>
-              </View>
-              <View style={styles.emptyState}>
-                <LayoutGrid size={48} color={Colors.textSecondary} />
-                <Text style={styles.emptyStateText}>No posts yet</Text>
-                <Text style={styles.emptyStateSubtext}>Share updates and highlights here</Text>
-              </View>
+              {myCoachPosts.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <LayoutGrid size={48} color={Colors.textSecondary} />
+                  <Text style={styles.emptyStateText}>No posts yet</Text>
+                  <Text style={styles.emptyStateSubtext}>Share updates and highlights here</Text>
+                </View>
+              ) : (
+                <View style={styles.postsFeedList}>
+                  {myCoachPosts.map((post) => (
+                    <FeedCard key={post.id} post={post} isVisible={isScreenFocused} defaultMuted />
+                  ))}
+                </View>
+              )}
             </View>
           )}
 
-          {activeTab === 'reels' && (
+          {activeTab === 'media' && (
             <View style={styles.tabContent}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Reels</Text>
-              </View>
-              <View style={styles.emptyState}>
-                <Video size={48} color={Colors.textSecondary} />
-                <Text style={styles.emptyStateText}>No reels yet</Text>
-                <Text style={styles.emptyStateSubtext}>Short-form videos will appear here</Text>
-              </View>
+              {myCoachMediaPosts.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Video size={48} color={Colors.textSecondary} />
+                  <Text style={styles.emptyStateText}>No media yet</Text>
+                  <Text style={styles.emptyStateSubtext}>Photos and videos will appear here</Text>
+                </View>
+              ) : (
+                <View style={styles.grid}>
+                  {myCoachMediaPosts.map((post) => {
+                    const gm = coachPostGridMedia(post);
+                    if (!gm) return null;
+                    return (
+                      <TouchableOpacity
+                        key={post.id}
+                        style={styles.gridItem}
+                        activeOpacity={0.85}
+                        onPress={() => router.push(`/post/${post.id}`)}
+                      >
+                        <PostMedia
+                          uri={gm.uri}
+                          mediaType={gm.mediaType}
+                          style={styles.gridImage}
+                          mode="preview"
+                          shouldPlayOverride={false}
+                          isMutedOverride
+                        />
+                        {gm.mediaType === 'video' ? (
+                          <View style={styles.videoIcon}>
+                            <Film size={16} color="white" />
+                          </View>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           )}
 
           {activeTab === 'reposts' && (
             <View style={styles.tabContent}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Reposts</Text>
-              </View>
               <View style={styles.emptyState}>
                 <Repeat size={48} color={Colors.textSecondary} />
                 <Text style={styles.emptyStateText}>No reposts yet</Text>
                 <Text style={styles.emptyStateSubtext}>Reposts from athletes will appear here</Text>
-              </View>
-            </View>
-          )}
-
-          {activeTab === 'saved' && (
-            <View style={styles.tabContent}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Saved</Text>
-              </View>
-              <View style={styles.emptyState}>
-                <Bookmark size={48} color={Colors.textSecondary} />
-                <Text style={styles.emptyStateText}>No saved posts</Text>
-                <Text style={styles.emptyStateSubtext}>Saved posts will appear here</Text>
               </View>
             </View>
           )}
@@ -528,6 +558,7 @@ export default function CoachProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: CONNECTIONS_PANEL_HEIGHT,
                 transform: [{ translateY: slideUpAnim }],
@@ -537,7 +568,7 @@ export default function CoachProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeConnectionsPanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>@{username}</Text>
                 <TouchableOpacity
@@ -545,7 +576,7 @@ export default function CoachProfileScreen() {
                   hitSlop={12}
                   onPress={openConnectPanel}
                 >
-                  <UserPlus size={24} color="white" />
+                  <UserPlus size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
               <View style={styles.connectionsTabs}>
@@ -608,6 +639,7 @@ export default function CoachProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: CONNECTIONS_PANEL_HEIGHT,
                 transform: [{ translateY: connectPanelSlideAnim }],
@@ -617,7 +649,7 @@ export default function CoachProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeConnectPanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>Connect</Text>
                 <View style={styles.connectionsPanelClose} />
@@ -670,6 +702,7 @@ export default function CoachProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: SHARE_PANEL_HEIGHT,
                 transform: [{ translateY: sharePanelSlideAnim }],
@@ -679,11 +712,11 @@ export default function CoachProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeSharePanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>Share profile</Text>
                 <TouchableOpacity style={styles.connectionsPanelClose} hitSlop={12} onPress={closeSharePanel}>
-                  <X size={24} color="white" />
+                  <X size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -924,12 +957,12 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   locationText: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 14,
     flex: 1,
   },
   bio: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -939,7 +972,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   profileLinkText: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 14,
     fontWeight: '700',
     flexShrink: 1,
@@ -959,6 +992,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '800',
+    color: Colors.text,
     marginBottom: 4,
   },
   statLabel: {
@@ -1020,16 +1054,34 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+  postsFeedList: {
+    width: '100%',
+    paddingTop: 4,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  gridItem: {
+    width: COLUMN_WIDTH,
+    height: COLUMN_WIDTH * 1.3,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: Colors.card,
+    position: 'relative',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  videoIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 4,
+    borderRadius: 100,
   },
   panelOverlay: {
     position: 'absolute',

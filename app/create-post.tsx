@@ -3,11 +3,13 @@ import { useRouter } from 'expo-router';
 import { useCreatePost } from '@/context/CreatePostContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 /**
  * Route /create-post opens the create-post slide-up panel and redirects to tabs.
  */
 export default function CreatePostRoute() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const { open } = useCreatePost();
 
@@ -17,7 +19,7 @@ export default function CreatePostRoute() {
   }, [open, router]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, bgStyle]}>
       <ActivityIndicator size="large" color={Colors.primary} />
     </View>
   );

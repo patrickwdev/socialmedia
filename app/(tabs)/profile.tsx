@@ -16,7 +16,6 @@ import {
   Share,
   Alert,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { MOCK_FOLLOWERS, MOCK_FANS, MOCK_FOLLOWING, MOCK_SUGGESTED, MOCK_CONNECT_PEOPLE, type FollowerItem, type Post } from '@/data/mock';
@@ -29,6 +28,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useFeedPosts } from '@/context/FeedPostsContext';
 import { FeedCard } from '@/components/FeedCard';
 import { useProfile } from '@/hooks/useProfile';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
+import { ProfileLinkDisplay } from '@/components/ProfileLinkDisplay';
 import * as Clipboard from 'expo-clipboard';
 import { Link as LinkIcon, X } from 'lucide-react-native';
 
@@ -49,6 +50,7 @@ const CONNECTIONS_CONFIG: Record<ConnectionsTab, { title: string; data: Follower
 const CONNECTIONS_TABS: ConnectionsTab[] = ['followers', 'fans', 'following', 'suggested'];
 
 export default function ProfileScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const isTabFocused = useIsFocused();
   const { user } = useAuth();
@@ -264,21 +266,21 @@ export default function ProfileScreen() {
 
   if (role === 'scout' || role === 'coach' || role === 'fan') {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View style={[styles.container, styles.centered, bgStyle]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View style={[styles.container, styles.centered, bgStyle]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
   if (error || !profile) {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View style={[styles.container, styles.centered, bgStyle]}>
         <Text style={styles.errorText}>{error ?? 'Could not load profile.'}</Text>
       </View>
     );
@@ -317,7 +319,7 @@ export default function ProfileScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, bgStyle]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Cover / Banner */}
         <View style={styles.coverContainer}>
@@ -370,13 +372,13 @@ export default function ProfileScreen() {
                         style={styles.followButton}
                         onPress={openSharePanel}
                     >
-                        <Share2 size={20} color="white" />
+                        <Share2 size={20} color={Colors.text} />
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.followButton}
                         onPress={() => router.push('/edit-profile')}
                     >
-                        <Pencil size={20} color="white" />
+                        <Pencil size={20} color={Colors.text} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -397,25 +399,17 @@ export default function ProfileScreen() {
                       </View>
                     ) : null}
                     {profileLink ? (
-                      <TouchableOpacity
-                        style={[styles.profileLinkRow, !profile.bio && profile.location && styles.profileLinkRowNoBio, profile.location && styles.profileLinkRowAfterLocation]}
-                        activeOpacity={0.7}
-                        onPress={async () => {
-                          try {
-                            const supported = await Linking.canOpenURL(normalizedProfileLink);
-                            if (supported) {
-                              await Linking.openURL(normalizedProfileLink);
-                            } else {
-                              Alert.alert('Invalid link', 'This link cannot be opened.');
-                            }
-                          } catch {
-                            Alert.alert('Error', 'Could not open link.');
-                          }
-                        }}
-                      >
-                        <LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />
-                        <Text style={styles.profileLinkText} numberOfLines={1}>{profileLink}</Text>
-                      </TouchableOpacity>
+                      <ProfileLinkDisplay
+                        displayUrl={profileLink}
+                        normalizedHref={normalizedProfileLink}
+                        icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />}
+                        rowStyle={[
+                          styles.profileLinkRow,
+                          !profile.bio && profile.location && styles.profileLinkRowNoBio,
+                          profile.location && styles.profileLinkRowAfterLocation,
+                        ]}
+                        textStyle={styles.profileLinkText}
+                      />
                     ) : null}
                   </View>
                 ) : null}
@@ -680,6 +674,7 @@ export default function ProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: CONNECTIONS_PANEL_HEIGHT,
                 transform: [{ translateY: slideUpAnim }],
@@ -689,7 +684,7 @@ export default function ProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeConnectionsPanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>@{profile.username}</Text>
                 <TouchableOpacity
@@ -697,7 +692,7 @@ export default function ProfileScreen() {
                   hitSlop={12}
                   onPress={openConnectPanel}
                 >
-                  <UserPlus size={24} color="white" />
+                  <UserPlus size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
               <View style={styles.connectionsTabs}>
@@ -756,6 +751,7 @@ export default function ProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: CONNECTIONS_PANEL_HEIGHT,
                 transform: [{ translateY: connectPanelSlideAnim }],
@@ -765,7 +761,7 @@ export default function ProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeConnectPanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>Connect</Text>
                 <View style={styles.connectionsPanelClose} />
@@ -819,6 +815,7 @@ export default function ProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: SHARE_PANEL_HEIGHT,
                 transform: [{ translateY: sharePanelSlideAnim }],
@@ -828,11 +825,11 @@ export default function ProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeSharePanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>Share profile</Text>
                 <TouchableOpacity style={styles.connectionsPanelClose} hitSlop={12} onPress={closeSharePanel}>
-                  <X size={24} color="white" />
+                  <X size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -1084,12 +1081,12 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   locationText: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 14,
     flex: 1,
   },
   bio: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 15,
     lineHeight: 20,
     marginTop: -2,
@@ -1107,7 +1104,7 @@ const styles = StyleSheet.create({
     marginTop: -8,
   },
   profileLinkText: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 14,
     fontWeight: '700',
     flexShrink: 1,

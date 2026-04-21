@@ -15,8 +15,10 @@ import { Colors } from '@/constants/Colors';
 import { MOCK_SUGGESTED, MOCK_CONNECT_PEOPLE, type FollowerItem } from '@/data/mock';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, BadgeCheck, Search } from 'lucide-react-native';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 export default function ConnectScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -47,7 +49,7 @@ export default function ConnectScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft size={28} color={Colors.primary} />

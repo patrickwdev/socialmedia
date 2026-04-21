@@ -94,10 +94,15 @@ function mapRowToPost(row: PostRow): Post | null {
     isLive: row.is_live,
     type: row.type,
     postType: row.post_type === 'clips' ? 'clips' : 'post',
-    ...(row.clips_source === 'highlights' || row.clips_source === 'grinds'
+    ...(row.clips_source === 'highlights' ||
+    row.clips_source === 'grinds' ||
+    row.clips_source === 'clips'
       ? { clipsSource: row.clips_source }
       : {}),
     ...(poll ? { poll } : {}),
+    ...(typeof row.location === 'string' && row.location.trim()
+      ? { location: row.location.trim() }
+      : {}),
   };
 }
 
@@ -163,10 +168,14 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
       shares: post.shares,
       is_live: Boolean(post.isLive),
       user_snapshot: post.user,
+      location: post.location?.trim() ? post.location.trim() : null,
       ...(post.createdAt ? { created_at: post.createdAt } : {}),
     });
 
     if (error) {
+      if (__DEV__) {
+        console.warn('[posts insert]', error.message, error);
+      }
       setPosts((prev) => prev.filter((p) => p.id !== post.id));
       if (loadedFromSupabase) {
         void loadPosts();

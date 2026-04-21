@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, SafeAreaView, Platform, StatusBar, Linking, ActivityIndicator, Dimensions, Modal, Animated, FlatList, Pressable, TextInput, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, SafeAreaView, Platform, StatusBar, ActivityIndicator, Dimensions, Modal, Animated, FlatList, Pressable, TextInput, Alert, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Colors } from '@/constants/Colors';
 import {
@@ -18,9 +18,6 @@ import {
   Share2, 
   MoreHorizontal,
   Pencil,
-  Eye, 
-  FileText, 
-  MoreVertical, 
   Link as LinkIcon,
   Heart,
   BadgeCheck,
@@ -41,6 +38,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { PostMedia } from '@/components/PostMedia';
+import { ProfileLinkDisplay } from '@/components/ProfileLinkDisplay';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 32 - 20) / 3;
@@ -71,7 +70,7 @@ function capitalizeWords(s: string): string {
   return s.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
-const SCOUT_PROFILE_TAB_KEYS = new Set(['Liked', 'Watchlists', 'Tagged']);
+const SCOUT_PROFILE_TAB_KEYS = new Set(['Liked', 'Tagged']);
 
 export default function ScoutProfileScreen() {
   const router = useRouter();
@@ -79,7 +78,7 @@ export default function ScoutProfileScreen() {
   const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const meta = (user?.user_metadata || {}) as ScoutMetadata & { profile_name?: string; full_name?: string };
-  const [activeTab, setActiveTab] = useState('Watchlists');
+  const [activeTab, setActiveTab] = useState('Liked');
   const [showConnectionsPanel, setShowConnectionsPanel] = useState(false);
 
   useEffect(() => {
@@ -97,6 +96,7 @@ export default function ScoutProfileScreen() {
   const connectPanelSlideAnim = useRef(new Animated.Value(CONNECTIONS_PANEL_HEIGHT)).current;
   const [showSharePanel, setShowSharePanel] = useState(false);
   const sharePanelSlideAnim = useRef(new Animated.Value(SHARE_PANEL_HEIGHT)).current;
+  const bgStyle = useThemeBackgroundStyle();
 
   useEffect(() => {
     if (showConnectionsPanel) {
@@ -210,33 +210,6 @@ export default function ScoutProfileScreen() {
     </View>
   );
 
-  const watchlist = [
-    {
-      id: 1,
-      name: 'Jalen Rivers',
-      role: 'Point Guard | Class of 2025',
-      image: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=200&auto=format&fit=crop',
-      status: 'HIGH PRIORITY',
-      statusColor: Colors.primary,
-    },
-    {
-      id: 2,
-      name: 'Marcus Chen',
-      role: 'Wide Receiver | Class of 2024',
-      image: 'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?q=80&w=200&auto=format&fit=crop',
-      status: 'REVIEWED',
-      statusColor: Colors.success,
-    },
-    {
-      id: 3,
-      name: 'David Miller',
-      role: 'Forward | Class of 2026',
-      image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=200&auto=format&fit=crop',
-      status: 'PENDING',
-      statusColor: Colors.textSecondary,
-    },
-  ];
-
   const displayName = profile?.name
     ?? capitalizeWords(meta.profile_name?.trim() || meta.full_name?.trim() || user?.email?.split('@')[0] || 'Scout');
   const username = profile?.username ?? meta.profile_name?.trim() ?? user?.email?.split('@')[0] ?? 'scout';
@@ -250,20 +223,6 @@ export default function ScoutProfileScreen() {
     displayLink && /^https?:\/\//i.test(displayLink) ? displayLink : displayLink ? `https://${displayLink}` : '';
   const showProfileDetails = !!(profile?.bio || profile?.location || displayLink);
   const showLinkPlaceholder = !displayLink && !!(profile?.bio || profile?.location);
-
-  const openDisplayLink = async () => {
-    if (!normalizedDisplayLink) return;
-    try {
-      const supported = await Linking.canOpenURL(normalizedDisplayLink);
-      if (supported) {
-        await Linking.openURL(normalizedDisplayLink);
-      } else {
-        Alert.alert('Invalid link', 'This link cannot be opened.');
-      }
-    } catch {
-      Alert.alert('Error', 'Could not open link.');
-    }
-  };
 
   const shareProfileUrl = useMemo(() => {
     const u = username?.trim();
@@ -324,14 +283,14 @@ export default function ScoutProfileScreen() {
   // so we don’t flash placeholder banner/avatar or stale text before metadata catches up.
   if (profileLoading) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered]}>
+      <SafeAreaView style={[styles.container, bgStyle, styles.centered]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, bgStyle]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Banner / Cover */}
         <View style={styles.coverContainer}>
@@ -373,10 +332,10 @@ export default function ScoutProfileScreen() {
           </View>
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.followButton} onPress={openSharePanel} activeOpacity={0.7}>
-              <Share2 size={20} color="white" />
+              <Share2 size={20} color={Colors.text} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.messageButton} onPress={() => router.push('/edit-profile')}>
-              <Pencil size={20} color="white" />
+              <Pencil size={20} color={Colors.text} />
             </TouchableOpacity>
           </View>
         </View>
@@ -401,14 +360,13 @@ export default function ScoutProfileScreen() {
               ) : null}
               <View style={profile?.location ? styles.linkFieldBelowLocation : undefined}>
                 {displayLink ? (
-                  <TouchableOpacity
-                    style={styles.linkRow}
-                    activeOpacity={0.7}
-                    onPress={openDisplayLink}
-                  >
-                    <LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />
-                    <Text style={styles.linkText} numberOfLines={1}>{displayLink}</Text>
-                  </TouchableOpacity>
+                  <ProfileLinkDisplay
+                    displayUrl={displayLink}
+                    normalizedHref={normalizedDisplayLink}
+                    icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />}
+                    rowStyle={styles.linkRow}
+                    textStyle={styles.linkText}
+                  />
                 ) : showLinkPlaceholder ? (
                   <TouchableOpacity
                     onPress={() => router.push('/edit-profile')}
@@ -426,19 +384,19 @@ export default function ScoutProfileScreen() {
         {/* Stats - single row like athlete */}
         <View style={styles.statsContainer}>
           <TouchableOpacity style={styles.statItem} onPress={() => openConnectionsPanel('followers')} activeOpacity={0.7}>
-            <Text style={styles.statValue}>2.4k</Text>
+            <Text style={styles.statValue}>{profile?.followers ?? '0'}</Text>
             <Text style={styles.statLabel}>FOLLOWERS</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.statItem} onPress={() => openConnectionsPanel('following')} activeOpacity={0.7}>
-            <Text style={styles.statValue}>312</Text>
+            <Text style={styles.statValue}>{profile?.following ?? '0'}</Text>
             <Text style={styles.statLabel}>FOLLOWING</Text>
           </TouchableOpacity>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>1.2k</Text>
+            <Text style={styles.statValue}>0</Text>
             <Text style={styles.statLabel}>SCOUTED</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>89</Text>
+            <Text style={styles.statValue}>0</Text>
             <Text style={styles.statLabel}>LIKED POSTS</Text>
           </View>
         </View>
@@ -453,15 +411,6 @@ export default function ScoutProfileScreen() {
             <Heart size={24} color={activeTab === 'Liked' ? Colors.primary : Colors.textSecondary} />
             <Text style={[styles.tabLabel, activeTab === 'Liked' && styles.activeTabLabel]} numberOfLines={2}>LIKED</Text>
             {activeTab === 'Liked' && <View style={styles.activeLine} />}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'Watchlists' && styles.activeTab]}
-            onPress={() => setActiveTab('Watchlists')}
-            activeOpacity={0.7}
-          >
-            <Eye size={24} color={activeTab === 'Watchlists' ? Colors.primary : Colors.textSecondary} />
-            <Text style={[styles.tabLabel, activeTab === 'Watchlists' && styles.activeTabLabel]} numberOfLines={2}>WATCHLISTS</Text>
-            {activeTab === 'Watchlists' && <View style={styles.activeLine} />}
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'Tagged' && styles.activeTab]}
@@ -497,49 +446,6 @@ export default function ScoutProfileScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        )}
-
-        {activeTab === 'Watchlists' && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Primary Watchlist</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.listContainer}>
-              {watchlist.map((item) => (
-                <TouchableOpacity key={item.id} style={styles.listItem}>
-                  <Image source={{ uri: item.image }} style={styles.listAvatar} />
-                  <View style={styles.listContent}>
-                    <Text style={styles.listName}>{item.name}</Text>
-                    <Text style={styles.listRole}>{item.role}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: `${item.statusColor}20` }]}>
-                      <Text style={[styles.statusText, { color: item.statusColor }]}>{item.status}</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity>
-                    <MoreVertical size={20} color={Colors.textSecondary} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.noteCard}>
-              <View style={styles.noteHeader}>
-                <FileText size={16} color={Colors.primary} />
-                <Text style={styles.noteTitle}>Recent Recruitment Note</Text>
-              </View>
-              <Text style={styles.noteText}>
-                "Rivers showed exceptional court vision during the regional finals. Explosive first step. Needs to work on perimeter consistency..."
-              </Text>
-              <View style={styles.noteFooter}>
-                <Text style={styles.noteTime}>Updated 2 hours ago</Text>
-                <TouchableOpacity style={styles.editBtn}>
-                  <Text style={styles.editText}>Edit Note</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </>
         )}
 
         {activeTab === 'Tagged' && (
@@ -578,6 +484,7 @@ export default function ScoutProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: CONNECTIONS_PANEL_HEIGHT,
                 transform: [{ translateY: slideUpAnim }],
@@ -587,7 +494,7 @@ export default function ScoutProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeConnectionsPanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>@{username}</Text>
                 <TouchableOpacity
@@ -595,7 +502,7 @@ export default function ScoutProfileScreen() {
                   hitSlop={12}
                   onPress={openConnectPanel}
                 >
-                  <UserPlus size={24} color="white" />
+                  <UserPlus size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
               <View style={styles.connectionsTabs}>
@@ -654,6 +561,7 @@ export default function ScoutProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: CONNECTIONS_PANEL_HEIGHT,
                 transform: [{ translateY: connectPanelSlideAnim }],
@@ -663,7 +571,7 @@ export default function ScoutProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeConnectPanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>Connect</Text>
                 <View style={styles.connectionsPanelClose} />
@@ -716,6 +624,7 @@ export default function ScoutProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: SHARE_PANEL_HEIGHT,
                 transform: [{ translateY: sharePanelSlideAnim }],
@@ -725,11 +634,11 @@ export default function ScoutProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeSharePanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>Share profile</Text>
                 <TouchableOpacity style={styles.connectionsPanelClose} hitSlop={12} onPress={closeSharePanel}>
-                  <X size={24} color="white" />
+                  <X size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -981,11 +890,11 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 14,
-    color: 'white',
+    color: Colors.text,
     flex: 1,
   },
   bio: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -1003,7 +912,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   linkText: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 14,
     fontWeight: '700',
     flexShrink: 1,
@@ -1118,7 +1027,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: 'white',
+    color: Colors.text,
   },
   seeAllText: {
     color: Colors.primary,
@@ -1150,7 +1059,7 @@ const styles = StyleSheet.create({
   listName: {
     fontSize: 15,
     fontWeight: '700',
-    color: 'white',
+    color: Colors.text,
     marginBottom: 2,
   },
   listRole: {
@@ -1189,7 +1098,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     fontSize: 14,
-    color: '#E2E8F0',
+    color: Colors.text,
     fontStyle: 'italic',
     lineHeight: 22,
     marginBottom: 12,

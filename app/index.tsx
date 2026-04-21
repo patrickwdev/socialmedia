@@ -2,14 +2,16 @@ import { Redirect } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { Colors } from '@/constants/Colors';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 import { isEmailVerified } from '@/lib/emailConfirmation';
 
 export default function Index() {
+  const bgStyle = useThemeBackgroundStyle();
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, bgStyle]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );

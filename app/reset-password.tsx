@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Linking from 'expo-linking';
-import { Colors } from '@/constants/Colors';
+import { Colors, primaryButtonGradient } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,10 +22,12 @@ import {
   tryApplyPasswordRecoveryFromUrl,
   urlLooksLikePasswordRecoveryRoute,
 } from '@/lib/passwordRecovery';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const MIN_LENGTH = 8;
 
 export default function ResetPasswordScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
   const { session, loading: authLoading, signOut } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -80,7 +82,7 @@ export default function ResetPasswordScreen() {
   const invalidLink = linkChecked && !session && !done;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, bgStyle]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -158,7 +160,7 @@ export default function ResetPasswordScreen() {
                   disabled={submitting}
                 >
                   <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
+                    colors={primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
@@ -310,3 +312,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+

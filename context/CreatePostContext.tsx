@@ -22,8 +22,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { faker } from '@faker-js/faker';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 import { useFeedPosts } from '@/context/FeedPostsContext';
 import { useProfile } from '@/hooks/useProfile';
 import { mapAuthUserToFeedUser } from '@/lib/mapAuthUserToFeedUser';
@@ -37,6 +39,34 @@ import {
   type CloudinaryVideoEditOptions,
 } from '@/lib/cloudinary';
 import type { Post, PostAsset, PostPoll } from '@/data/mock';
+import {
+  fetchNearbyPlaceSuggestions,
+  searchPhotonPlaces,
+  type LocationSuggestion,
+} from '@/lib/locationSearch';
+import { searchProfilesByUsername, type ProfileSearchHit } from '@/lib/searchProfiles';
+
+/** Merges compose caption with tagged usernames into one stored caption string (no extra Post fields). */
+function buildCaptionWithTags(body: string, taggedUsernames: string[]): string {
+  const core = body.trim();
+  const already = new Set<string>();
+  for (const m of core.matchAll(/@([a-zA-Z0-9_]+)/g)) {
+    const h = m[1]?.toLowerCase();
+    if (h) already.add(h);
+  }
+  const seen = new Set<string>(already);
+  const handles = taggedUsernames
+    .map((u) => u.replace(/^@+/, '').trim())
+    .filter(Boolean)
+    .filter((u) => {
+      const k = u.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .map((u) => `@${u}`);
+  return [core, ...handles].filter(Boolean).join(' ').trim();
+}
 
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop';
@@ -59,7 +89,7 @@ type PostToolPanel =
   | 'visibility'
   | 'editor';
 type ComposerMode = 'post' | 'clips';
-type ClipsSourceChip = 'highlights' | 'grinds' | null;
+type ClipsSourceChip = 'highlights' | 'grinds' | 'clips' | null;
 type SelectedMedia = { uri: string; kind: 'image' | 'video'; durationMs?: number | null };
 type MediaGridItem = { id: string; uri: string; kind: 'image' | 'video'; durationMs?: number | null };
 type VisibilityOption = 'public' | 'followers' | 'fans' | 'none';
@@ -102,6 +132,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
     [windowHeight],
   );
   const { user } = useAuth();
+  const isCoach = (user?.user_metadata as { role?: string } | undefined)?.role === 'coach';
   const { addPost } = useFeedPosts();
   const { profile } = useProfile();
   const [caption, setCaption] = useState('');
@@ -126,6 +157,19 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollChoices, setPollChoices] = useState<string[]>(['', '']);
   const [pollDurationDays, setPollDurationDays] = useState<PollDurationDays>(7);
+  const [postLocation, setPostLocation] = useState<string | null>(null);
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [tagSearchResults, setTagSearchResults] = useState<ProfileSearchHit[]>([]);
+  const [tagSearchLoading, setTagSearchLoading] = useState(false);
+  const [tagSearchError, setTagSearchError] = useState<string | null>(null);
+  /** Tagged users for this draft; merged into `caption` on post (not a separate Post field). */
+  const [taggedUsernames, setTaggedUsernames] = useState<string[]>([]);
   const [editorTargetIndex, setEditorTargetIndex] = useState<number | null>(null);
   const [editorBusy, setEditorBusy] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
@@ -150,6 +194,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
   const toolPanelBackdropOpacity = useRef(new Animated.Value(0)).current;
   const editorDiscardBackdropOpacity = useRef(new Animated.Value(0)).current;
   const editorDiscardSheetY = useRef(new Animated.Value(EDITOR_DISCARD_SHEET_SLIDE)).current;
+  const bgStyle = useThemeBackgroundStyle();
 
   const resetComposerState = useCallback(() => {
     setCaption('');
@@ -188,6 +233,16 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
     setActiveToolPanel(null);
     setAwaitingClipPicker(false);
     setEditorDiscardSheetVisible(false);
+    setPostLocation(null);
+    setLocationSearchQuery('');
+    setLocationSuggestions([]);
+    setLocationError(null);
+    setLocationCoords(null);
+    setLocationPermissionDenied(false);
+    setTagSearchQuery('');
+    setTagSearchResults([]);
+    setTagSearchError(null);
+    setTaggedUsernames([]);
   }, []);
 
   useEffect(() => {
@@ -210,6 +265,16 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
       toolPanelBackdropOpacity.setValue(0);
       setAwaitingClipPicker(false);
       setEditorDiscardSheetVisible(false);
+      setPostLocation(null);
+      setLocationSearchQuery('');
+      setLocationSuggestions([]);
+      setLocationError(null);
+      setLocationCoords(null);
+      setLocationPermissionDenied(false);
+      setTagSearchQuery('');
+      setTagSearchResults([]);
+      setTagSearchError(null);
+      setTaggedUsernames([]);
       editorDiscardSheetY.setValue(EDITOR_DISCARD_SHEET_SLIDE);
       editorDiscardBackdropOpacity.setValue(0);
     }
@@ -338,17 +403,51 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
     }
   }, [gifQuery, loadTrendingGifs]);
 
-  const openToolPanel = (panel: PostToolPanel) => {
+  const ensureLocationCoords = useCallback(async () => {
+    setLocationLoading(true);
+    setLocationError(null);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationPermissionDenied(true);
+        setLocationCoords(null);
+        return;
+      }
+      setLocationPermissionDenied(false);
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setLocationCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+    } catch {
+      setLocationError('Could not read your location.');
+      setLocationCoords(null);
+    } finally {
+      setLocationLoading(false);
+    }
+  }, []);
+
+  const openToolPanel = (panel: PostToolPanel, mediaOpts?: { loadMediaVideosOnly?: boolean }) => {
     setActiveToolPanel(panel);
+    if (panel === 'location') {
+      setLocationSearchQuery('');
+      setLocationError(null);
+      if (!locationCoords) {
+        void ensureLocationCoords();
+      }
+    }
     if (panel === 'media') {
       setPendingMediaSelection(selectedMediaItems);
-      void loadDeviceMedia({ videosOnly: composerMode === 'clips' });
+      const videosOnly = mediaOpts?.loadMediaVideosOnly ?? composerMode === 'clips';
+      void loadDeviceMedia({ videosOnly });
     }
     if (panel === 'gifs') {
       setPendingGifSelection(null);
       setGifQuery('');
       setGifsError(null);
       void loadTrendingGifs();
+    }
+    if (panel === 'tag') {
+      setTagSearchQuery('');
+      setTagSearchResults([]);
+      setTagSearchError(null);
     }
     Animated.parallel([
       Animated.spring(toolPanelTranslateY, {
@@ -376,59 +475,69 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
     });
   };
 
-  const activateClipsComposer = useCallback((source: 'highlights' | 'grinds') => {
-    if (awaitingClipPicker) return;
-    setClipsSourceChip(source);
-    setAwaitingClipPicker(true);
-    void (async () => {
-      try {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Photo access needed', 'Allow photo library access in Settings to attach videos.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open settings', onPress: () => void Linking.openSettings() },
-          ]);
-          setClipsSourceChip(null);
-          return;
-        }
-        const pickerResult = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['videos'],
-          allowsMultipleSelection: false,
-          selectionLimit: 1,
-          quality: 0.85,
-        });
-        if (pickerResult.canceled || pickerResult.assets.length === 0) {
-          setClipsSourceChip(null);
-          return;
-        }
-        const asset = pickerResult.assets[0];
-        const kind = asset.type === 'video' ? 'video' : 'image';
-        if (kind !== 'video') {
-          Alert.alert('Video required', 'Choose a video clip for Highlights or Grinds.');
-          setClipsSourceChip(null);
-          return;
-        }
-        const clipMedia: SelectedMedia = {
-          uri: asset.uri,
-          kind: 'video',
-          durationMs: asset.duration ?? null,
-        };
-        setSelectedMediaItems([clipMedia]);
-        setActivePreviewIndex(0);
+  const activateClipsComposer = useCallback(
+    (source: 'highlights' | 'grinds' | 'clips') => {
+      if (awaitingClipPicker) return;
+      setClipsSourceChip(source);
+
+      if (Platform.OS === 'web') {
         setComposerMode('clips');
-        if (MEDIA_EDITOR_ENABLED) {
-          openEditorPanel(0, { sourceItems: [clipMedia], initialCrop: '9:16' });
-        } else {
-          setEditorCrop('9:16');
-        }
-      } catch {
-        Alert.alert('Could not open library', 'Please try again.');
-        setClipsSourceChip(null);
-      } finally {
-        setAwaitingClipPicker(false);
+        openToolPanel('media', { loadMediaVideosOnly: true });
+        return;
       }
-    })();
-  }, [awaitingClipPicker]);
+
+      setAwaitingClipPicker(true);
+      void (async () => {
+        try {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Photo access needed', 'Allow photo library access in Settings to attach videos.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open settings', onPress: () => void Linking.openSettings() },
+            ]);
+            setClipsSourceChip(null);
+            return;
+          }
+          const pickerResult = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['videos'],
+            allowsMultipleSelection: false,
+            selectionLimit: 1,
+            quality: 0.85,
+          });
+          if (pickerResult.canceled || pickerResult.assets.length === 0) {
+            setClipsSourceChip(null);
+            return;
+          }
+          const asset = pickerResult.assets[0];
+          const kind = asset.type === 'video' ? 'video' : 'image';
+          if (kind !== 'video') {
+            Alert.alert('Video required', 'Choose a video clip for Highlights, Grinds, or Clips.');
+            setClipsSourceChip(null);
+            return;
+          }
+          const clipMedia: SelectedMedia = {
+            uri: asset.uri,
+            kind: 'video',
+            durationMs: asset.duration ?? null,
+          };
+          setComposerMode('clips');
+          setSelectedMediaItems([clipMedia]);
+          setActivePreviewIndex(0);
+          if (MEDIA_EDITOR_ENABLED) {
+            openEditorPanel(0, { sourceItems: [clipMedia], initialCrop: '9:16' });
+          } else {
+            setEditorCrop('9:16');
+          }
+        } catch {
+          Alert.alert('Could not open library', 'Please try again.');
+          setClipsSourceChip(null);
+        } finally {
+          setAwaitingClipPicker(false);
+        }
+      })();
+    },
+    [awaitingClipPicker]
+  );
 
   const openEditorPanel = (
     targetIndex: number,
@@ -476,6 +585,17 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
       setGifResults([]);
       setGifsError(null);
     }
+    if (activeToolPanel === 'location') {
+      setLocationSearchQuery('');
+      setLocationError(null);
+      setLocationLoading(false);
+    }
+    if (activeToolPanel === 'tag') {
+      setTagSearchQuery('');
+      setTagSearchResults([]);
+      setTagSearchError(null);
+      setTagSearchLoading(false);
+    }
     if (activeToolPanel === 'editor') {
       setEditorError(null);
       setEditorDiscardSheetVisible(false);
@@ -495,6 +615,78 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
       }),
     ]).start(() => setActiveToolPanel(null));
   };
+
+  const fetchLocationResults = useCallback(async () => {
+    const q = locationSearchQuery.trim();
+    if (!q && !locationCoords) {
+      setLocationSuggestions([]);
+      return;
+    }
+    setLocationLoading(true);
+    setLocationError(null);
+    try {
+      if (q) {
+        const rows = await searchPhotonPlaces(q, {
+          lat: locationCoords?.lat,
+          lon: locationCoords?.lon,
+        });
+        setLocationSuggestions(rows);
+      } else if (locationCoords) {
+        const rows = await fetchNearbyPlaceSuggestions(locationCoords.lat, locationCoords.lon);
+        setLocationSuggestions(rows);
+      }
+    } catch {
+      setLocationError('Could not load places. Try again.');
+      setLocationSuggestions([]);
+    } finally {
+      setLocationLoading(false);
+    }
+  }, [locationSearchQuery, locationCoords]);
+
+  useEffect(() => {
+    if (activeToolPanel !== 'location') return;
+    const q = locationSearchQuery.trim();
+    if (!q && !locationCoords) return;
+    const delayMs = q ? 360 : 0;
+    const t = setTimeout(() => {
+      void fetchLocationResults();
+    }, delayMs);
+    return () => clearTimeout(t);
+  }, [activeToolPanel, locationSearchQuery, locationCoords, fetchLocationResults]);
+
+  const fetchTagSearchResults = useCallback(async () => {
+    const q = tagSearchQuery.trim();
+    if (!q) {
+      setTagSearchResults([]);
+      return;
+    }
+    setTagSearchLoading(true);
+    setTagSearchError(null);
+    try {
+      const rows = await searchProfilesByUsername(q, { excludeUserId: user?.id, limit: 24 });
+      setTagSearchResults(rows);
+    } catch {
+      setTagSearchError('Could not search users. Check your connection or profile permissions.');
+      setTagSearchResults([]);
+    } finally {
+      setTagSearchLoading(false);
+    }
+  }, [tagSearchQuery, user?.id]);
+
+  useEffect(() => {
+    if (activeToolPanel !== 'tag') return;
+    const q = tagSearchQuery.trim();
+    if (!q) {
+      setTagSearchResults([]);
+      setTagSearchError(null);
+      return;
+    }
+    const delayMs = 320;
+    const t = setTimeout(() => {
+      void fetchTagSearchResults();
+    }, delayMs);
+    return () => clearTimeout(t);
+  }, [activeToolPanel, tagSearchQuery, fetchTagSearchResults]);
 
   const openEditorDiscardSheet = useCallback(() => {
     editorDiscardSheetY.setValue(EDITOR_DISCARD_SHEET_SLIDE);
@@ -533,8 +725,14 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
   ]);
 
   const commitMediaSelectionAndClose = () => {
-    setSelectedMediaItems(pendingMediaSelection);
+    const committed = pendingMediaSelection.slice();
+    setSelectedMediaItems(committed);
     setActivePreviewIndex(0);
+    const openEditorAfterClipPick =
+      composerMode === 'clips' &&
+      MEDIA_EDITOR_ENABLED &&
+      committed.length === 1 &&
+      committed[0]?.kind === 'video';
     Animated.parallel([
       Animated.timing(toolPanelTranslateY, {
         toValue: TOOL_PANEL_HEIGHT,
@@ -549,6 +747,9 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
     ]).start(() => {
       setPendingMediaSelection([]);
       setActiveToolPanel(null);
+      if (openEditorAfterClipPick) {
+        openEditorPanel(0, { sourceItems: committed, initialCrop: '9:16' });
+      }
     });
   };
 
@@ -626,14 +827,16 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
       user: author,
       content: primaryUri,
       ...(postAssets ? { assets: postAssets } : {}),
-      caption: q,
+      caption: buildCaptionWithTags(q, taggedUsernames),
       type: 'poll',
       poll: pollPayload,
       likes: 0,
       comments: 0,
+      reposts: 0,
       shares: 0,
       timeAgo: 'Just now',
       createdAt,
+      ...(postLocation ? { location: postLocation } : {}),
     };
     const posted = await addPost(newPost);
     if (!posted) {
@@ -825,8 +1028,9 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
       Alert.alert('One clip at a time', 'Clips only support one video per post.');
       return;
     }
-    if (!hasMedia && !trimmed) {
-      Alert.alert('Nothing to post', 'Write something in the caption or attach a photo or video.');
+    const captionForPost = buildCaptionWithTags(trimmed, taggedUsernames);
+    if (!hasMedia && !captionForPost) {
+      Alert.alert('Nothing to post', 'Write something in the caption, tag someone, or attach a photo or video.');
       return;
     }
     if (!user) {
@@ -847,14 +1051,16 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
           id: faker.string.uuid(),
           user: author,
           content: '',
-          caption: trimmed,
+          caption: captionForPost,
           type: 'text',
           postType: composerMode,
           likes: 0,
           comments: 0,
+          reposts: 0,
           shares: 0,
           timeAgo: 'Just now',
           createdAt,
+          ...(postLocation ? { location: postLocation } : {}),
         };
         const posted = await addPost(newPost);
         if (!posted) {
@@ -876,9 +1082,10 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
         user: author,
         content: primaryMedia.uri,
         assets: postAssets,
-        caption: trimmed,
+        caption: captionForPost,
         likes: 0,
         comments: 0,
+        reposts: 0,
         shares: 0,
         timeAgo: 'Just now',
         createdAt,
@@ -887,6 +1094,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
         ...(composerMode === 'clips'
           ? { clipsSource: clipsSourceChip ?? 'highlights' }
           : {}),
+        ...(postLocation ? { location: postLocation } : {}),
       };
       const posted = await addPost(newPost);
       if (!posted) {
@@ -901,13 +1109,17 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
   };
 
   const hasMedia = selectedMediaItems.length > 0;
-  const hasTextBody = caption.trim().length > 0;
+  const hasTextBody = caption.trim().length > 0 || taggedUsernames.length > 0;
   const hasClipVideo = composerMode === 'clips' ? selectedMediaItems.some((item) => item.kind === 'video') : true;
   const canPressPost = (hasMedia || hasTextBody) && hasClipVideo && !submitting;
   const hasPollDraft =
     pollQuestion.trim().length > 0 || pollChoices.some((c) => c.trim().length > 0);
   const hasDraftContent =
-    caption.trim().length > 0 || selectedMediaItems.length > 0 || hasPollDraft;
+    caption.trim().length > 0 ||
+    taggedUsernames.length > 0 ||
+    selectedMediaItems.length > 0 ||
+    hasPollDraft ||
+    Boolean(postLocation);
 
   const handleClosePress = () => {
     if (awaitingClipPicker) {
@@ -934,12 +1146,13 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
   };
 
   return (
-    <View style={[panelStyles.container, awaitingClipPicker && panelStyles.containerClipPick]}>
+    <View style={[panelStyles.container, awaitingClipPicker && panelStyles.containerClipPick, bgStyle]}>
       <View
         style={[
           panelStyles.header,
           { paddingTop: insets.top + 12 },
           awaitingClipPicker && panelStyles.headerClipPick,
+          bgStyle,
         ]}
       >
         {awaitingClipPicker ? <View style={panelStyles.iconButtonPlaceholder} /> : (
@@ -959,7 +1172,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
       </View>
 
       {awaitingClipPicker ? (
-        <View style={panelStyles.clipPickFill} />
+        <View style={[panelStyles.clipPickFill, bgStyle]} />
       ) : (
       <ScrollView
         contentContainerStyle={[panelStyles.scrollContent, { paddingBottom: insets.bottom + 200 }]}
@@ -968,7 +1181,12 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
         <View style={panelStyles.section}>
           {composerMode === 'clips' && clipsSourceChip ? (
             <Text style={panelStyles.clipsSourceText}>
-              Posting to Clips from {clipsSourceChip === 'highlights' ? 'Highlights' : 'Grinds'}
+              Posting to Clips from{' '}
+              {clipsSourceChip === 'highlights'
+                ? 'Highlights'
+                : clipsSourceChip === 'grinds'
+                  ? 'Grinds'
+                  : 'Clips'}
             </Text>
           ) : null}
           <View style={panelStyles.captionComposer}>
@@ -1054,7 +1272,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
 
       {!awaitingClipPicker ? (
         <>
-      <View style={[panelStyles.bottomToolsWrap, { bottom: 104 + insets.bottom }]}>
+      <View style={[panelStyles.bottomToolsWrap, bgStyle, { bottom: 104 + insets.bottom }]}>
         <View style={panelStyles.audienceWrap}>
           <View style={panelStyles.audienceRow}>
             <Text style={panelStyles.audienceHint}>Who can see this post?</Text>
@@ -1076,28 +1294,44 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
             <Ionicons name="image-outline" size={16} color={Colors.textSecondary} />
             <Text style={panelStyles.postToolText}>Media</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={panelStyles.postToolButton}
-            activeOpacity={0.75}
-            onPress={() => activateClipsComposer('highlights')}
-          >
-            <Ionicons name="star-outline" size={16} color={Colors.textSecondary} />
-            <Text style={panelStyles.postToolText}>Highlights</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={panelStyles.postToolButton}
-            activeOpacity={0.75}
-            onPress={() => activateClipsComposer('grinds')}
-          >
-            <Ionicons name="flash-outline" size={16} color={Colors.textSecondary} />
-            <Text style={panelStyles.postToolText}>Grinds</Text>
-          </TouchableOpacity>
+          {isCoach ? (
+            <TouchableOpacity
+              style={panelStyles.postToolButton}
+              activeOpacity={0.75}
+              onPress={() => activateClipsComposer('clips')}
+            >
+              <Ionicons name="film-outline" size={16} color={Colors.textSecondary} />
+              <Text style={panelStyles.postToolText}>Clips</Text>
+            </TouchableOpacity>
+          ) : null}
+          {!isCoach ? (
+            <>
+              <TouchableOpacity
+                style={panelStyles.postToolButton}
+                activeOpacity={0.75}
+                onPress={() => activateClipsComposer('highlights')}
+              >
+                <Ionicons name="star-outline" size={16} color={Colors.textSecondary} />
+                <Text style={panelStyles.postToolText}>Highlights</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={panelStyles.postToolButton}
+                activeOpacity={0.75}
+                onPress={() => activateClipsComposer('grinds')}
+              >
+                <Ionicons name="flash-outline" size={16} color={Colors.textSecondary} />
+                <Text style={panelStyles.postToolText}>Grinds</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
           {composerMode !== 'clips' ? (
             <>
-              <TouchableOpacity style={panelStyles.postToolButton} activeOpacity={0.75} onPress={() => openToolPanel('stats')}>
-                <Ionicons name="stats-chart-outline" size={16} color={Colors.textSecondary} />
-                <Text style={panelStyles.postToolText}>Stats</Text>
-              </TouchableOpacity>
+              {!isCoach ? (
+                <TouchableOpacity style={panelStyles.postToolButton} activeOpacity={0.75} onPress={() => openToolPanel('stats')}>
+                  <Ionicons name="stats-chart-outline" size={16} color={Colors.textSecondary} />
+                  <Text style={panelStyles.postToolText}>Stats</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity style={panelStyles.postToolButton} activeOpacity={0.75} onPress={() => openToolPanel('tag')}>
                 <Ionicons name="pricetag-outline" size={16} color={Colors.textSecondary} />
                 <Text style={panelStyles.postToolText}>Tag</Text>
@@ -1119,7 +1353,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
         </View>
       </View>
 
-      <View style={[panelStyles.footer, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[panelStyles.footer, bgStyle, { paddingBottom: insets.bottom + 16 }]}>
         <TouchableOpacity
           style={[panelStyles.postButton, !canPressPost && panelStyles.postButtonDisabled]}
           onPress={() => void handlePost()}
@@ -1148,6 +1382,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
           <Animated.View
             style={[
               panelStyles.toolPanel,
+              bgStyle,
               {
                 height: TOOL_PANEL_HEIGHT,
                 transform: [{ translateY: toolPanelTranslateY }],
@@ -1335,6 +1570,203 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
                       </TouchableOpacity>
                     );
                   })}
+                </View>
+              ) : activeToolPanel === 'tag' ? (
+                <View style={panelStyles.locationPanel}>
+                  <View style={panelStyles.gifSearchRow}>
+                    <TextInput
+                      style={panelStyles.gifSearchInput}
+                      placeholder="Search users by username"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={tagSearchQuery}
+                      onChangeText={setTagSearchQuery}
+                      returnKeyType="search"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      onSubmitEditing={() => void fetchTagSearchResults()}
+                    />
+                    <TouchableOpacity
+                      style={panelStyles.gifSearchButton}
+                      onPress={() => void fetchTagSearchResults()}
+                      accessibilityRole="button"
+                      accessibilityLabel="Search users"
+                    >
+                      <Ionicons name="search" size={16} color={Colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  {taggedUsernames.length > 0 ? (
+                    <View style={panelStyles.tagSelectedWrap}>
+                      <Text style={panelStyles.tagSelectedLabel}>Tagged</Text>
+                      <View style={panelStyles.tagChipRow}>
+                        {taggedUsernames.map((u) => (
+                          <View key={u.toLowerCase()} style={panelStyles.tagChip}>
+                            <Text style={panelStyles.tagChipText}>@{u}</Text>
+                            <TouchableOpacity
+                              onPress={() => setTaggedUsernames((prev) => prev.filter((x) => x !== u))}
+                              hitSlop={6}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Remove ${u}`}
+                            >
+                              <Ionicons name="close-circle" size={16} color={Colors.textSecondary} />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+                  {!tagSearchQuery.trim() ? (
+                    <Text style={panelStyles.locationHint}>
+                      Type a username to find people on the app. Tap someone to tag them — tags show under your
+                      caption on the feed (not in the caption box).
+                    </Text>
+                  ) : null}
+                  {tagSearchLoading && tagSearchResults.length === 0 ? (
+                    <ActivityIndicator color={Colors.primary} style={panelStyles.gifStatus} />
+                  ) : tagSearchError && tagSearchResults.length === 0 ? (
+                    <View style={panelStyles.toolPanelEmptyWrap}>
+                      <Text style={panelStyles.toolPanelEmptyText}>{tagSearchError}</Text>
+                      <TouchableOpacity style={panelStyles.webPickButton} onPress={() => void fetchTagSearchResults()}>
+                        <Text style={panelStyles.webPickButtonText}>Try again</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <FlatList
+                      data={tagSearchResults}
+                      keyExtractor={(item) => item.id}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={panelStyles.locationListContent}
+                      ListEmptyComponent={
+                        !tagSearchLoading && tagSearchQuery.trim().length > 0 ? (
+                          <Text style={panelStyles.toolPanelEmptyText}>No users match that search.</Text>
+                        ) : null
+                      }
+                      renderItem={({ item }) => (
+                        <TouchableOpacity
+                          style={panelStyles.tagUserRow}
+                          activeOpacity={0.75}
+                          onPress={() => {
+                            const clean = item.username.replace(/^@+/, '').trim();
+                            if (!clean) return;
+                            setTaggedUsernames((prev) => {
+                              if (prev.some((u) => u.toLowerCase() === clean.toLowerCase())) return prev;
+                              return [...prev, clean];
+                            });
+                            closeToolPanel();
+                          }}
+                        >
+                          <View style={panelStyles.tagUserAvatar}>
+                            <Text style={panelStyles.tagUserAvatarLetter}>
+                              {item.username.replace(/^@+/, '').trim().slice(0, 1).toUpperCase() || '?'}
+                            </Text>
+                          </View>
+                          <View style={panelStyles.locationRowTextWrap}>
+                            <Text style={panelStyles.locationRowTitle} numberOfLines={1}>
+                              @{item.username.replace(/^@+/, '')}
+                            </Text>
+                          </View>
+                          <Ionicons name="add-circle-outline" size={22} color={Colors.primary} />
+                        </TouchableOpacity>
+                      )}
+                    />
+                  )}
+                </View>
+              ) : activeToolPanel === 'location' ? (
+                <View style={panelStyles.locationPanel}>
+                  <View style={panelStyles.gifSearchRow}>
+                    <TextInput
+                      style={panelStyles.gifSearchInput}
+                      placeholder="Search places"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={locationSearchQuery}
+                      onChangeText={setLocationSearchQuery}
+                      returnKeyType="search"
+                      onSubmitEditing={() => void fetchLocationResults()}
+                    />
+                    <TouchableOpacity
+                      style={panelStyles.gifSearchButton}
+                      onPress={() => void fetchLocationResults()}
+                      accessibilityRole="button"
+                      accessibilityLabel="Search places"
+                    >
+                      <Ionicons name="search" size={16} color={Colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  {locationPermissionDenied ? (
+                    <Text style={panelStyles.locationHint}>
+                      Location access is off. Search for a place, or enable location for nearby suggestions.
+                    </Text>
+                  ) : null}
+                  {postLocation ? (
+                    <View style={panelStyles.locationSelectedRow}>
+                      <Text style={panelStyles.locationSelectedText} numberOfLines={2}>
+                        Selected: {postLocation}
+                      </Text>
+                      <TouchableOpacity onPress={() => setPostLocation(null)} hitSlop={8}>
+                        <Text style={panelStyles.locationClearText}>Clear</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                  {!locationSearchQuery.trim() ? (
+                    <Text style={panelStyles.locationSectionLabel}>Near you</Text>
+                  ) : null}
+                  {locationLoading && locationSuggestions.length === 0 ? (
+                    <ActivityIndicator color={Colors.primary} style={panelStyles.gifStatus} />
+                  ) : locationError && locationSuggestions.length === 0 ? (
+                    <View style={panelStyles.toolPanelEmptyWrap}>
+                      <Text style={panelStyles.toolPanelEmptyText}>{locationError}</Text>
+                      <TouchableOpacity style={panelStyles.webPickButton} onPress={() => void fetchLocationResults()}>
+                        <Text style={panelStyles.webPickButtonText}>Try again</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <FlatList
+                      data={locationSuggestions}
+                      keyExtractor={(item) => item.id}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={panelStyles.locationListContent}
+                      ListEmptyComponent={
+                        !locationLoading ? (
+                          <Text style={panelStyles.toolPanelEmptyText}>
+                            {!locationSearchQuery.trim() && locationPermissionDenied
+                              ? 'Try searching for a city or venue.'
+                              : 'No places match that search.'}
+                          </Text>
+                        ) : null
+                      }
+                      renderItem={({ item }) => {
+                        const fullLabel = item.detail ? `${item.label}, ${item.detail}` : item.label;
+                        return (
+                          <TouchableOpacity
+                            style={panelStyles.locationRow}
+                            onPress={() => {
+                              setPostLocation(fullLabel);
+                              closeToolPanel();
+                            }}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons
+                              name="location-outline"
+                              size={18}
+                              color={Colors.primary}
+                              style={panelStyles.locationRowIcon}
+                            />
+                            <View style={panelStyles.locationRowTextWrap}>
+                              <Text style={panelStyles.locationRowTitle} numberOfLines={2}>
+                                {item.label}
+                              </Text>
+                              {item.detail ? (
+                                <Text style={panelStyles.locationRowSubtitle} numberOfLines={2}>
+                                  {item.detail}
+                                </Text>
+                              ) : null}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      }}
+                    />
+                  )}
                 </View>
               ) : activeToolPanel === 'polls' ? (
                 <ScrollView
@@ -1757,7 +2189,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
                     ) : null}
                     {editorError ? <Text style={panelStyles.editorError}>{editorError}</Text> : null}
                   </ScrollView>
-                  <View style={[panelStyles.editorBottomChrome, { paddingBottom: 10 + insets.bottom }]}>
+                  <View style={[panelStyles.editorBottomChrome, bgStyle, { paddingBottom: 10 + insets.bottom }]}>
                     <View style={panelStyles.editorActions}>
                       <TouchableOpacity
                         style={panelStyles.editorResetBtn}
@@ -1854,6 +2286,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
           <Animated.View
             style={[
               panelStyles.editorDiscardSheet,
+              bgStyle,
               {
                 paddingBottom: 20 + insets.bottom,
                 transform: [{ translateY: editorDiscardSheetY }],
@@ -2002,6 +2435,137 @@ const panelStyles = StyleSheet.create({
     color: Colors.text,
     fontSize: 12,
     fontWeight: '600',
+  },
+  locationPanel: {
+    flex: 1,
+  },
+  locationHint: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 10,
+    lineHeight: 17,
+  },
+  locationSelectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  locationSelectedText: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  locationClearText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  locationSectionLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    marginBottom: 8,
+  },
+  locationListContent: {
+    paddingBottom: 28,
+    paddingTop: 4,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  locationRowIcon: {
+    marginRight: 10,
+  },
+  locationRowTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  locationRowTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  locationRowSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 3,
+  },
+  tagUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 10,
+  },
+  tagUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagUserAvatarLetter: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  tagSelectedWrap: {
+    marginBottom: 10,
+  },
+  tagSelectedLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    marginBottom: 6,
+  },
+  tagChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingLeft: 10,
+    paddingRight: 6,
+    borderRadius: 999,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tagChipText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   visibilityList: {
     paddingTop: 6,

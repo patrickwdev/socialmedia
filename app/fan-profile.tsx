@@ -18,9 +18,9 @@ import {
   TextInput,
   Share,
   Alert,
-  Linking,
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
+import { ProfileLinkDisplay } from '@/components/ProfileLinkDisplay';
 import { MOCK_FOLLOWING, MOCK_FOLLOWERS, type FollowerItem } from '@/data/mock';
 import { useRouter } from 'expo-router';
 import {
@@ -29,7 +29,6 @@ import {
   Share2,
   Pencil,
   Heart,
-  Bookmark,
   Film,
   BadgeCheck,
   Search,
@@ -46,6 +45,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { MapPin } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 const CONNECTIONS_PANEL_HEIGHT = height * 0.85;
@@ -64,20 +64,19 @@ function capitalizeWords(s: string): string {
   return s.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
-type FanTab = 'liked' | 'saved' | 'shared' | 'history';
 type ProfileLink = { id?: string; title?: string; url?: string };
 
 export default function FanProfileScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { profile, loading } = useProfile();
-  const [activeTab, setActiveTab] = useState<FanTab>('liked');
   const [showConnectionsPanel, setShowConnectionsPanel] = useState(false);
   const [connectionsTab, setConnectionsTab] = useState<ConnectionsTab>('following');
   const [connectionsSearch, setConnectionsSearch] = useState('');
   const connectionsSlideAnim = useRef(new Animated.Value(CONNECTIONS_PANEL_HEIGHT)).current;
   const [showSharePanel, setShowSharePanel] = useState(false);
   const sharePanelSlideAnim = useRef(new Animated.Value(SHARE_PANEL_HEIGHT)).current;
+  const bgStyle = useThemeBackgroundStyle();
 
   useEffect(() => {
     if (showConnectionsPanel) {
@@ -208,14 +207,14 @@ export default function FanProfileScreen() {
   // Prevent a flash of placeholder/default avatar/banner while profile metadata loads.
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View style={[styles.container, bgStyle, styles.centered]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, bgStyle]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Cover - match athlete; use profile banner when set */}
         <View style={styles.coverContainer}>
@@ -251,7 +250,7 @@ export default function FanProfileScreen() {
             </View>
             <View style={styles.actionButtons}>
               <TouchableOpacity style={styles.followButton} onPress={openSharePanel} activeOpacity={0.7}>
-                <Share2 size={20} color="white" />
+                <Share2 size={20} color={Colors.text} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.messageButton} onPress={() => router.push('/edit-profile')}>
                 <Pencil size={20} color={Colors.text} />
@@ -274,31 +273,17 @@ export default function FanProfileScreen() {
                 </View>
               ) : null}
               {hasLink ? (
-                <TouchableOpacity
-                  style={[
+                <ProfileLinkDisplay
+                  displayUrl={profileLink}
+                  normalizedHref={normalizedProfileLink}
+                  icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.profileLinkIcon} />}
+                  rowStyle={[
                     styles.profileLinkRow,
                     !hasBio && hasLocation && styles.profileLinkRowNoBio,
                     hasBio && hasLink && styles.profileLinkRowAfterBio,
                   ]}
-                  activeOpacity={0.7}
-                  onPress={async () => {
-                    try {
-                      const supported = await Linking.canOpenURL(normalizedProfileLink);
-                      if (supported) {
-                        await Linking.openURL(normalizedProfileLink);
-                      } else {
-                        Alert.alert('Invalid link', 'This link cannot be opened.');
-                      }
-                    } catch {
-                      Alert.alert('Error', 'Could not open link.');
-                    }
-                  }}
-                >
-                  <LinkIcon size={14} color={Colors.textSecondary} style={styles.profileLinkIcon} />
-                  <Text style={styles.profileLinkText} numberOfLines={1}>
-                    {profileLink}
-                  </Text>
-                </TouchableOpacity>
+                  textStyle={styles.profileLinkText}
+                />
               ) : null}
             </View>
           </View>
@@ -306,57 +291,26 @@ export default function FanProfileScreen() {
           {/* Stats - single row like athlete */}
           <View style={styles.statsContainer}>
             <TouchableOpacity style={styles.statItem} onPress={() => openConnectionsPanel('following')} activeOpacity={0.7}>
-              <Text style={styles.statValue}>142</Text>
+              <Text style={styles.statValue}>{profile?.following ?? '0'}</Text>
               <Text style={styles.statLabel}>FOLLOWING</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.statItem} onPress={() => openConnectionsPanel('followers')} activeOpacity={0.7}>
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{profile?.followers ?? '0'}</Text>
               <Text style={styles.statLabel}>FOLLOWERS</Text>
             </TouchableOpacity>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>856</Text>
+              <Text style={styles.statValue}>{profile?.fans ?? '0'}</Text>
               <Text style={styles.statLabel}>LIKES</Text>
             </View>
           </View>
 
           {/* Content tabs - same style as athlete */}
           <View style={styles.contentTabs}>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'liked' && styles.activeTab]}
-              onPress={() => setActiveTab('liked')}
-              activeOpacity={0.7}
-            >
-              <Heart size={24} color={activeTab === 'liked' ? Colors.primary : Colors.textSecondary} />
-              <Text style={[styles.tabLabel, activeTab === 'liked' && styles.activeTabLabel]}>LIKED</Text>
-              {activeTab === 'liked' && <View style={styles.activeLine} />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'saved' && styles.activeTab]}
-              onPress={() => setActiveTab('saved')}
-              activeOpacity={0.7}
-            >
-              <Bookmark size={24} color={activeTab === 'saved' ? Colors.primary : Colors.textSecondary} />
-              <Text style={[styles.tabLabel, activeTab === 'saved' && styles.activeTabLabel]}>SAVED</Text>
-              {activeTab === 'saved' && <View style={styles.activeLine} />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'shared' && styles.activeTab]}
-              onPress={() => setActiveTab('shared')}
-              activeOpacity={0.7}
-            >
-              <Share2 size={24} color={activeTab === 'shared' ? Colors.primary : Colors.textSecondary} />
-              <Text style={[styles.tabLabel, activeTab === 'shared' && styles.activeTabLabel]}>SHARED</Text>
-              {activeTab === 'shared' && <View style={styles.activeLine} />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'history' && styles.activeTab]}
-              onPress={() => setActiveTab('history')}
-              activeOpacity={0.7}
-            >
-              <Film size={24} color={activeTab === 'history' ? Colors.primary : Colors.textSecondary} />
-              <Text style={[styles.tabLabel, activeTab === 'history' && styles.activeTabLabel]}>HISTORY</Text>
-              {activeTab === 'history' && <View style={styles.activeLine} />}
-            </TouchableOpacity>
+            <View style={[styles.tab, styles.activeTab]}>
+              <Heart size={24} color={Colors.primary} />
+              <Text style={[styles.tabLabel, styles.activeTabLabel]}>LIKED</Text>
+              <View style={styles.activeLine} />
+            </View>
           </View>
 
           {/* Grid - 3 columns like athlete */}
@@ -392,6 +346,7 @@ export default function FanProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: CONNECTIONS_PANEL_HEIGHT,
                 transform: [{ translateY: connectionsSlideAnim }],
@@ -464,6 +419,7 @@ export default function FanProfileScreen() {
           <Animated.View
             style={[
               styles.connectionsPanel,
+              bgStyle,
               {
                 height: SHARE_PANEL_HEIGHT,
                 transform: [{ translateY: sharePanelSlideAnim }],
@@ -473,11 +429,11 @@ export default function FanProfileScreen() {
             <SafeAreaView style={styles.connectionsPanelInner}>
               <View style={styles.connectionsPanelHeader}>
                 <TouchableOpacity onPress={closeSharePanel} style={styles.connectionsPanelBack} hitSlop={12}>
-                  <ArrowLeft size={24} color="white" />
+                  <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.connectionsPanelTitle}>Share profile</Text>
                 <TouchableOpacity style={styles.connectionsPanelClose} hitSlop={12} onPress={closeSharePanel}>
-                  <X size={24} color="white" />
+                  <X size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -692,12 +648,12 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   subtitle: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 15,
     lineHeight: 22,
   },
   bioInSubtitle: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 0,
@@ -717,7 +673,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   locationText: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 14,
     flex: 1,
   },
@@ -737,7 +693,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   profileLinkText: {
-    color: 'white',
+    color: Colors.text,
     fontSize: 14,
     fontWeight: '700',
     flexShrink: 1,

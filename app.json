@@ -8,7 +8,10 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to suggest nearby places when you tag a location on a post."
+      }
     },
     "web": {
       "bundler": "metro",
@@ -22,6 +25,12 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow access to your photos and videos to create highlights."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow access to your location to suggest nearby places when tagging a post."
         }
       ]
     ],

@@ -1,15 +1,17 @@
 import { Tabs, Redirect } from 'expo-router';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, Search, Play, User, Bell, MessageCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 import { isEmailVerified } from '@/lib/emailConfirmation';
 
 const TAB_CONTENT_HEIGHT = Platform.OS === 'ios' ? 49 : 56;
 const TAB_PADDING_TOP = 8;
 
 export default function TabLayout() {
+  const bgStyle = useThemeBackgroundStyle();
   const { user, loading } = useAuth();
   const insets = useSafeAreaInsets();
   const tabBarBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 8 : 0);
@@ -17,7 +19,7 @@ export default function TabLayout() {
 
   if (loading) {
     return (
-      <View style={layoutStyles.container}>
+      <View style={[{ flex: 1, justifyContent: 'center', alignItems: 'center' }, bgStyle]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
@@ -32,11 +34,14 @@ export default function TabLayout() {
   }
 
   return (
+    <View style={[{ flex: 1 }, bgStyle]}>
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          ...styles.tabBar,
+          backgroundColor: Colors.tabBar,
+          borderTopWidth: 1,
+          borderTopColor: Colors.border,
           height: tabBarHeight,
           paddingTop: TAB_PADDING_TOP,
           paddingBottom: tabBarBottomInset,
@@ -95,22 +100,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: Colors.tabBar,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-});
-
-const layoutStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-  },
-});

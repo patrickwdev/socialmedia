@@ -5,6 +5,7 @@ import { Colors } from '@/constants/Colors';
 import { Search, Bell, BadgeCheck, Play, Zap } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { faker } from '@faker-js/faker';
+import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +35,7 @@ const TRENDING_HIGHLIGHTS = Array.from({ length: 10 }).map((_, i) => ({
 }));
 
 export default function DiscoverScreen() {
+  const bgStyle = useThemeBackgroundStyle();
   const [activeCategory, setActiveCategory] = useState('All');
 
   // Split highlights into two columns for Masonry layout
@@ -75,7 +77,7 @@ export default function DiscoverScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, bgStyle]} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         {/* Header */}
