@@ -140,6 +140,17 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       borderWidth: 1,
       borderColor: 'rgba(255,255,255,0.22)',
     },
+    /** Own-post ⋯ on text/poll (readable on `Colors.card` body). */
+    headerOwnMoreButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Colors.background,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     badgeContainer: {
       borderRadius: 100,
       overflow: 'hidden',
@@ -206,12 +217,52 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       backgroundColor: 'white',
     },
     textPostContent: {
-      minHeight: 48,
       paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingTop: 12,
+      paddingBottom: 10,
       backgroundColor: Colors.card,
+      alignItems: 'stretch',
+    },
+    textPostUserRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      width: '100%',
+      marginBottom: 10,
+    },
+    textPostCornerAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+    },
+    textPostUserTextCol: {
+      flex: 1,
+      minWidth: 0,
+    },
+    textPostUserLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 2,
+      flexWrap: 'wrap',
+    },
+    textPostUsername: {
+      color: Colors.text,
+      fontWeight: '700',
+      fontSize: 16,
+      marginRight: 6,
+    },
+    textPostInlineVerifiedBadge: {
+      backgroundColor: Colors.primary,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    textPostInlineVerifiedCheck: {
+      color: 'white',
+      fontSize: 8,
+      fontWeight: 'bold',
     },
     textPostBodyMeasure: {
       width: '100%',
@@ -227,7 +278,15 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
     textPostSeparator: {
       height: 1,
       backgroundColor: Colors.border,
-      marginHorizontal: 16,
+    },
+    /** Text-only: sits above like/comment/share; bleeds past footer padding to card edges. */
+    textPostActionsDivider: {
+      height: 1,
+      backgroundColor: Colors.border,
+      alignSelf: 'stretch',
+      marginHorizontal: -16,
+      marginTop: 4,
+      marginBottom: 4,
     },
     textPostFooterCompact: {
       paddingTop: 8,
@@ -239,6 +298,14 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       paddingVertical: 18,
       backgroundColor: Colors.card,
       justifyContent: 'center',
+    },
+    /** Poll without media: sits under `textPostContent` (horizontal padding from parent). */
+    pollBodyNoMedia: {
+      paddingTop: 2,
+      paddingBottom: 10,
+      minHeight: 0,
+      justifyContent: 'flex-start',
+      backgroundColor: Colors.card,
     },
     pollBadge: {
       alignSelf: 'flex-start',
@@ -273,7 +340,13 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       marginTop: 8,
       color: Colors.textSecondary,
       fontSize: 12,
+      lineHeight: 16,
+    },
+    pollMetaEmphasis: {
       fontWeight: '600',
+    },
+    pollMetaSecondary: {
+      fontWeight: '400',
     },
     playButtonContainer: {
       position: 'absolute',
@@ -318,8 +391,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       width: 48,
       height: 48,
       borderRadius: 24,
-      borderWidth: 2,
-      borderColor: 'white',
     },
     mediaOverlayTextCol: {
       flex: 1,
@@ -405,8 +476,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       width: 40,
       height: 40,
       borderRadius: 20,
-      borderWidth: 2,
-      borderColor: Colors.primary,
     },
     userName: {
       color: Colors.text,
@@ -417,27 +486,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       color: Colors.textSecondary,
       fontSize: 12,
       lineHeight: 16,
-    },
-    followButton: {
-      backgroundColor: Colors.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 6,
-      borderRadius: 20,
-    },
-    followButtonText: {
-      color: 'white',
-      fontWeight: '600',
-      fontSize: 13,
-    },
-    moreButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: Colors.card,
-      borderWidth: 1,
-      borderColor: Colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     captionBlock: {
       marginBottom: 16,
@@ -549,16 +597,18 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
   const mediaItems = useMemo(() => {
     if (post.type === 'text') return [];
     if (post.assets && post.assets.length > 0) return post.assets;
-    if (post.type === 'poll') return [];
     if (!post.content) return [];
-    return [{ uri: post.content, type: post.type === 'video' ? 'video' : 'image' }] as const;
+    const mediaType = post.type === 'video' ? 'video' : 'image';
+    return [{ uri: post.content, type: mediaType }] as const;
   }, [post.assets, post.content, post.type]);
   const activeMediaType = mediaItems[activeAssetIndex]?.type;
   const isActiveVideoPlaying = activeMediaType === 'video' && isVisible;
   const hasImageMedia = mediaItems.some((asset) => asset.type === 'image');
-  const showMediaUserOverlay = mediaItems.length > 0 && post.type !== 'poll';
+  const showMediaUserOverlay = mediaItems.length > 0;
   const hasMediaCaptionOverlay =
-    showMediaUserOverlay && (captionBody.trim().length > 0 || mentionTags.length > 0);
+    showMediaUserOverlay &&
+    post.type !== 'poll' &&
+    (captionBody.trim().length > 0 || mentionTags.length > 0);
 
   const onMediaLayout = (event: LayoutChangeEvent) => {
     const nextWidth = Math.round(event.nativeEvent.layout.width);
@@ -612,12 +662,52 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
     ]);
   };
 
+  const renderPollCardBody = () => {
+    if (!post.poll) return null;
+    return (
+      <>
+        <Text style={styles.pollBadge}>POLL</Text>
+        <Text style={styles.pollQuestion}>{post.poll.question}</Text>
+        {mentionTags.length > 0 ? (
+          <Text
+            style={[
+              styles.captionTagsLine,
+              styles.pollTagsLine,
+              !captionBody.trim() && styles.captionTagsTightTop,
+            ]}
+            numberOfLines={3}
+          >
+            {mentionTags.map((u) => `@${u}`).join(' ')}
+          </Text>
+        ) : null}
+        {post.poll.choices.map((choice, idx) => (
+          <View key={`${choice}-${idx}`} style={[styles.pollChoicePill, bgStyle]}>
+            <Text style={styles.pollChoiceText}>{choice}</Text>
+          </View>
+        ))}
+        <Text style={styles.pollMeta} numberOfLines={2}>
+          <Text style={styles.pollMetaEmphasis}>
+            {post.poll.durationDays === 1 ? '1 day' : `${post.poll.durationDays} days`}
+          </Text>
+          <Text style={styles.pollMetaSecondary}>
+            {META_SEP}Tap an option to vote (coming soon)
+          </Text>
+        </Text>
+      </>
+    );
+  };
+
+  const pollHasNoMedia = post.type === 'poll' && mediaItems.length === 0;
+
   return (
     <View style={styles.container}>
       {/* Header Overlay */}
       <View style={styles.headerOverlay}>
         <View style={styles.headerOverlayStart}>
-          {post.user.isVerified && !showMediaUserOverlay ? (
+          {post.user.isVerified &&
+          !showMediaUserOverlay &&
+          post.type !== 'text' &&
+          !pollHasNoMedia ? (
             <View style={styles.badgeContainer}>
               <LinearGradient
                 colors={primaryButtonGradient}
@@ -633,20 +723,24 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
         <View style={styles.headerOverlayEnd}>
           {post.isLive ? (
             <View style={styles.liveBadge}>
-              <Text style={styles.liveText}>â— LIVE</Text>
+              <Text style={styles.liveText}>● LIVE</Text>
             </View>
           ) : null}
-          {showMediaUserOverlay && isOwnPost ? (
+          {isOwnPost ? (
             <TouchableOpacity
-              style={styles.mediaOverlayMoreButton}
+              style={showMediaUserOverlay ? styles.mediaOverlayMoreButton : styles.headerOwnMoreButton}
               onPress={openMenu}
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel="Open post options"
             >
-              <BlurView intensity={24} style={styles.mediaOverlayMoreBlur}>
-                <MoreHorizontal size={20} color="#fff" />
-              </BlurView>
+              {showMediaUserOverlay ? (
+                <BlurView intensity={24} style={styles.mediaOverlayMoreBlur}>
+                  <MoreHorizontal size={20} color="#fff" />
+                </BlurView>
+              ) : (
+                <MoreHorizontal size={20} color={Colors.textSecondary} />
+              )}
             </TouchableOpacity>
           ) : null}
         </View>
@@ -655,6 +749,27 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       {/* Content */}
       {post.type === 'text' ? (
         <View style={styles.textPostContent}>
+          <View style={styles.textPostUserRow}>
+            <Image source={{ uri: post.user.avatar }} style={styles.textPostCornerAvatar} />
+            <View style={styles.textPostUserTextCol}>
+              <View style={styles.textPostUserLine}>
+                <Text style={styles.textPostUsername}>@{post.user.username}</Text>
+                {post.user.isVerified ? (
+                  <View style={styles.textPostInlineVerifiedBadge}>
+                    <Text style={styles.textPostInlineVerifiedCheck}>✓</Text>
+                  </View>
+                ) : null}
+              </View>
+              <PostMetaSubline
+                sport={post.user.sport}
+                time={relativeTime}
+                location={locationLabel}
+                containerStyle={styles.userMeta}
+                sportEmphasisStyle={styles.postMetaSport}
+                secondaryStyle={styles.postMetaTime}
+              />
+            </View>
+          </View>
           <View style={styles.textPostBodyMeasure}>
             {captionBody.trim().length > 0 ? (
               <Text style={styles.textPostBody} numberOfLines={8}>
@@ -674,96 +789,123 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       ) : post.type === 'poll' && post.poll ? (
         <>
           {mediaItems.length > 0 ? (
-            <View style={styles.contentContainer} onLayout={onMediaLayout}>
-              <ScrollView
-                horizontal
-                pagingEnabled
-                style={styles.mediaPager}
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={(event) => {
-                  const pageWidth = event.nativeEvent.layoutMeasurement.width;
-                  const nextIndex = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
-                  setActiveAssetIndex(nextIndex);
-                }}
-              >
-                {mediaItems.map((asset) => (
-                  <PostMedia
-                    key={asset.uri}
-                    uri={asset.uri}
-                    mediaType={asset.type}
-                    style={[styles.media, mediaWidth > 0 ? { width: mediaWidth } : null]}
-                    mode="feed"
-                    shouldPlayOverride={
-                      asset.type === 'video' ? isVisible && mediaItems[activeAssetIndex]?.uri === asset.uri : undefined
-                    }
-                    isMutedOverride={
-                      asset.type === 'video'
-                        ? isVideoMuted || mediaItems[activeAssetIndex]?.uri !== asset.uri
-                        : undefined
-                    }
-                  />
-                ))}
-              </ScrollView>
-              {mediaItems.length > 1 ? (
-                <View style={styles.carouselDots}>
-                  {mediaItems.map((asset, idx) => (
-                    <View
-                      key={`${asset.uri}-${idx}`}
-                      style={[styles.carouselDot, idx === activeAssetIndex && styles.carouselDotActive]}
+            <>
+              <View style={styles.contentContainer} onLayout={onMediaLayout}>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  style={styles.mediaPager}
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(event) => {
+                    const pageWidth = event.nativeEvent.layoutMeasurement.width;
+                    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
+                    setActiveAssetIndex(nextIndex);
+                  }}
+                >
+                  {mediaItems.map((asset) => (
+                    <PostMedia
+                      key={asset.uri}
+                      uri={asset.uri}
+                      mediaType={asset.type}
+                      style={[styles.media, mediaWidth > 0 ? { width: mediaWidth } : null]}
+                      mode="feed"
+                      shouldPlayOverride={
+                        asset.type === 'video' ? isVisible && mediaItems[activeAssetIndex]?.uri === asset.uri : undefined
+                      }
+                      isMutedOverride={
+                        asset.type === 'video'
+                          ? isVideoMuted || mediaItems[activeAssetIndex]?.uri !== asset.uri
+                          : undefined
+                      }
                     />
                   ))}
-                </View>
-              ) : null}
-              {!hasImageMedia && activeMediaType === 'video' && !isActiveVideoPlaying ? (
-                <View style={styles.playButtonContainer}>
-                  <BlurView intensity={20} style={styles.playButtonBlur}>
-                    <Play fill="#fff" color="#fff" size={24} style={{ marginLeft: 4 }} />
-                  </BlurView>
-                </View>
-              ) : null}
-              {activeMediaType === 'video' ? (
-                <TouchableOpacity
-                  style={styles.muteToggleButton}
-                  onPress={() => setIsVideoMuted((prev) => !prev)}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={isVideoMuted ? 'Unmute video' : 'Mute video'}
-                >
-                  <BlurView intensity={20} style={styles.muteToggleBlur}>
-                    {isVideoMuted ? (
-                      <VolumeX color="#fff" size={18} />
-                    ) : (
-                      <Volume2 color="#fff" size={18} />
-                    )}
-                  </BlurView>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          ) : null}
-          <View style={styles.pollBody}>
-            <Text style={styles.pollBadge}>POLL</Text>
-            <Text style={styles.pollQuestion}>{post.poll.question}</Text>
-            {mentionTags.length > 0 ? (
-              <Text
-                style={[
-                  styles.captionTagsLine,
-                  styles.pollTagsLine,
-                  !captionBody.trim() && styles.captionTagsTightTop,
-                ]}
-                numberOfLines={3}
-              >
-                {mentionTags.map((u) => `@${u}`).join(' ')}
-              </Text>
-            ) : null}
-            {post.poll.choices.map((choice, idx) => (
-              <View key={`${choice}-${idx}`} style={[styles.pollChoicePill, bgStyle]}>
-                <Text style={styles.pollChoiceText}>{choice}</Text>
+                </ScrollView>
+                {mediaItems.length > 1 ? (
+                  <View style={styles.carouselDots}>
+                    {mediaItems.map((asset, idx) => (
+                      <View
+                        key={`${asset.uri}-${idx}`}
+                        style={[styles.carouselDot, idx === activeAssetIndex && styles.carouselDotActive]}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+                {!hasImageMedia && activeMediaType === 'video' && !isActiveVideoPlaying ? (
+                  <View style={styles.playButtonContainer}>
+                    <BlurView intensity={20} style={styles.playButtonBlur}>
+                      <Play fill="#fff" color="#fff" size={24} style={{ marginLeft: 4 }} />
+                    </BlurView>
+                  </View>
+                ) : null}
+                {activeMediaType === 'video' ? (
+                  <TouchableOpacity
+                    style={styles.muteToggleButton}
+                    onPress={() => setIsVideoMuted((prev) => !prev)}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={isVideoMuted ? 'Unmute video' : 'Mute video'}
+                  >
+                    <BlurView intensity={20} style={styles.muteToggleBlur}>
+                      {isVideoMuted ? (
+                        <VolumeX color="#fff" size={18} />
+                      ) : (
+                        <Volume2 color="#fff" size={18} />
+                      )}
+                    </BlurView>
+                  </TouchableOpacity>
+                ) : null}
+                {showMediaUserOverlay ? (
+                  <View style={styles.mediaUserOverlay} pointerEvents="box-none">
+                    <Image source={{ uri: post.user.avatar }} style={styles.mediaOverlayAvatar} />
+                    <View style={styles.mediaOverlayTextCol}>
+                      <View style={styles.mediaOverlayUserLine}>
+                        <Text style={styles.mediaOverlayUsername}>@{post.user.username}</Text>
+                        {post.user.isVerified ? (
+                          <View style={styles.mediaOverlayVerifiedBadge}>
+                            <Text style={styles.mediaOverlayVerifiedCheck}>✓</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <PostMetaSubline
+                        sport={post.user.sport}
+                        time={relativeTime}
+                        location={locationLabel}
+                        containerStyle={styles.mediaOverlayMeta}
+                        sportEmphasisStyle={styles.postMetaSport}
+                        secondaryStyle={styles.postMetaTime}
+                      />
+                    </View>
+                  </View>
+                ) : null}
               </View>
-            ))}
-            <Text style={styles.pollMeta}>
-              {post.poll.durationDays === 1 ? '1 day' : `${post.poll.durationDays} days`} Â· Tap an option to vote (coming soon)
-            </Text>
-          </View>
+              <View style={styles.pollBody}>{renderPollCardBody()}</View>
+            </>
+          ) : (
+            <View style={styles.textPostContent}>
+              <View style={styles.textPostUserRow}>
+                <Image source={{ uri: post.user.avatar }} style={styles.textPostCornerAvatar} />
+                <View style={styles.textPostUserTextCol}>
+                  <View style={styles.textPostUserLine}>
+                    <Text style={styles.textPostUsername}>@{post.user.username}</Text>
+                    {post.user.isVerified ? (
+                      <View style={styles.textPostInlineVerifiedBadge}>
+                        <Text style={styles.textPostInlineVerifiedCheck}>✓</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <PostMetaSubline
+                    sport={post.user.sport}
+                    time={relativeTime}
+                    location={locationLabel}
+                    containerStyle={styles.userMeta}
+                    sportEmphasisStyle={styles.postMetaSport}
+                    secondaryStyle={styles.postMetaTime}
+                  />
+                </View>
+              </View>
+              <View style={styles.pollBodyNoMedia}>{renderPollCardBody()}</View>
+            </View>
+          )}
         </>
       ) : (
         <View style={styles.contentContainer} onLayout={onMediaLayout}>
@@ -872,43 +1014,38 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
           ) : null}
         </View>
       )}
-      {post.type === 'text' || post.type === 'poll' ? <View style={styles.textPostSeparator} /> : null}
-      
+      {post.type === 'poll' && !pollHasNoMedia ? <View style={styles.textPostSeparator} /> : null}
+
       {/* Footer Info */}
-      <View style={[styles.footer, (post.type === 'text' || post.type === 'poll') && styles.textPostFooterCompact]}>
+      <View
+        style={[
+          styles.footer,
+          (post.type === 'text' || pollHasNoMedia) && styles.textPostFooterCompact,
+        ]}
+      >
         {!(showMediaUserOverlay && isOwnPost) ? (
           <View style={styles.userInfoRow}>
             {!showMediaUserOverlay ? (
-              <View style={styles.userLeft}>
-                <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
-                <View>
-                  <Text style={styles.userName}>@{post.user.username}</Text>
-                  <PostMetaSubline
-                    sport={post.user.sport}
-                    time={relativeTime}
-                    location={locationLabel}
-                    containerStyle={styles.userMeta}
-                    sportEmphasisStyle={styles.postMetaSport}
-                    secondaryStyle={styles.postMetaTime}
-                  />
+              post.type === 'text' || pollHasNoMedia ? (
+                <View style={styles.userInfoRowSpacer} />
+              ) : (
+                <View style={styles.userLeft}>
+                  <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
+                  <View>
+                    <Text style={styles.userName}>@{post.user.username}</Text>
+                    <PostMetaSubline
+                      sport={post.user.sport}
+                      time={relativeTime}
+                      location={locationLabel}
+                      containerStyle={styles.userMeta}
+                      sportEmphasisStyle={styles.postMetaSport}
+                      secondaryStyle={styles.postMetaTime}
+                    />
+                  </View>
                 </View>
-              </View>
+              )
             ) : (
               <View style={styles.userInfoRowSpacer} />
-            )}
-            {isOwnPost ? (
-              <TouchableOpacity
-                style={styles.moreButton}
-                onPress={openMenu}
-                accessibilityRole="button"
-                accessibilityLabel="Open post options"
-              >
-                <MoreHorizontal size={20} color={Colors.textSecondary} />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.followButton}>
-                <Text style={styles.followButtonText}>Follow</Text>
-              </TouchableOpacity>
             )}
           </View>
         ) : null}
@@ -929,6 +1066,8 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
             ) : null}
           </View>
         ) : null}
+
+        {post.type === 'text' || pollHasNoMedia ? <View style={styles.textPostActionsDivider} /> : null}
 
         {/* Action Bar */}
         <View style={styles.actionBar}>

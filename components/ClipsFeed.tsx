@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, FlatList, Image, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View, type ViewToken } from 'react-native';
+import { Dimensions, FlatList, Image, Platform, StatusBar, Text, TouchableOpacity, View, type ViewToken } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, MessageCircle, MoreHorizontal, Plus, Music, Share2 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { useFeedPosts } from '@/context/FeedPostsContext';
-import { useTheme, useThemeBackgroundStyle } from '@/context/ThemeContext';
+import { useTheme, useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 import { PostMedia } from '@/components/PostMedia';
 import type { Post } from '@/data/mock';
 
@@ -23,6 +23,151 @@ export default function ClipsFeed({
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const bgStyle = useThemeBackgroundStyle();
+  const styles = useThemedStylesheet(() => ({
+    container: {
+      flex: 1,
+    },
+    item: {
+      width: '100%',
+      position: 'relative',
+      justifyContent: 'center',
+    },
+    media: {
+      width: '100%',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+    },
+    gradient: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: '50%',
+    },
+    centerEmpty: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    rightActions: {
+      position: 'absolute',
+      right: 12,
+      bottom: 100,
+      alignItems: 'center',
+      zIndex: 20,
+    },
+    avatarStack: {
+      marginBottom: 8,
+      position: 'relative',
+    },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 2,
+      borderColor: 'white',
+    },
+    plusBadge: {
+      position: 'absolute',
+      bottom: -8,
+      alignSelf: 'center',
+      backgroundColor: Colors.primary,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: 'white',
+    },
+    actionBlock: {
+      alignItems: 'center',
+      marginTop: 16,
+    },
+    actionCount: {
+      color: 'white',
+      fontSize: 11,
+      fontWeight: '500',
+      marginTop: 4,
+    },
+    bottomInfo: {
+      position: 'absolute',
+      bottom: 20,
+      left: 16,
+      right: 80,
+      zIndex: 10,
+    },
+    userLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    username: {
+      color: 'white',
+      fontWeight: '700',
+      fontSize: 16,
+      marginRight: 6,
+      textShadowColor: 'rgba(0,0,0,0.5)',
+      textShadowOffset: { width: 1, height: 1 },
+      textShadowRadius: 2,
+    },
+    verifiedBadge: {
+      backgroundColor: Colors.primary,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    verifiedCheck: {
+      color: 'white',
+      fontSize: 8,
+      fontWeight: 'bold',
+    },
+    caption: {
+      color: 'white',
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: 12,
+      textShadowColor: 'rgba(0,0,0,0.5)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    musicRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    musicText: {
+      color: 'white',
+      fontSize: 13,
+      fontWeight: '500',
+      marginLeft: 8,
+    },
+    emptyState: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      left: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+      zIndex: 2,
+    },
+    emptyTitle: {
+      color: Colors.text,
+      fontSize: 20,
+      fontWeight: '700',
+    },
+    emptyText: {
+      color: Colors.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+      marginTop: 8,
+    },
+  }));
 
   const screenHeight =
     Platform.OS === 'ios'
@@ -143,7 +288,7 @@ export default function ClipsFeed({
       </View>
     </TouchableOpacity>
     ),
-    [isTabFocused, onPressClip, screenHeight, visibleClipIds, bgStyle]
+    [isTabFocused, onPressClip, screenHeight, visibleClipIds, bgStyle, styles]
   );
 
   return (
@@ -177,150 +322,4 @@ export default function ClipsFeed({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  item: {
-    width: '100%',
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  media: {
-    width: '100%',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  gradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '50%',
-  },
-  centerEmpty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rightActions: {
-    position: 'absolute',
-    right: 12,
-    bottom: 100,
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  avatarStack: {
-    marginBottom: 8,
-    position: 'relative',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  plusBadge: {
-    position: 'absolute',
-    bottom: -8,
-    alignSelf: 'center',
-    backgroundColor: Colors.primary,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  actionBlock: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  actionCount: {
-    color: 'white',
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  bottomInfo: {
-    position: 'absolute',
-    bottom: 20,
-    left: 16,
-    right: 80,
-    zIndex: 10,
-  },
-  userLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  username: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 16,
-    marginRight: 6,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  verifiedBadge: {
-    backgroundColor: Colors.primary,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  verifiedCheck: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-  },
-  caption: {
-    color: 'white',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  musicRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  musicText: {
-    color: 'white',
-    fontSize: 13,
-    fontWeight: '500',
-    marginLeft: 8,
-  },
-  emptyState: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    left: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    zIndex: 2,
-  },
-  emptyTitle: {
-    color: Colors.text,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  emptyText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-});
 

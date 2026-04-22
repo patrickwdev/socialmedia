@@ -27,10 +27,145 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
-import { useThemeBackgroundStyle } from '@/context/ThemeContext';
+import { useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 
 export default function SettingsScreen() {
   const bgStyle = useThemeBackgroundStyle();
+  const styles = useThemedStylesheet(() => ({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.background,
+      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    backButton: {
+      padding: 4,
+    },
+    scrollContent: {
+      paddingBottom: 40,
+    },
+    section: {
+      marginBottom: 24,
+      paddingHorizontal: 16,
+    },
+    sectionHeader: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: Colors.textSecondary,
+      marginBottom: 12,
+      letterSpacing: 1,
+    },
+    settingItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+    },
+    settingLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    iconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: Colors.card,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    settingLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: Colors.text,
+    },
+    settingSubtitle: {
+      fontSize: 12,
+      color: Colors.textSecondary,
+      marginTop: 2,
+    },
+    athleteHubContainer: {
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: Colors.primary,
+      position: 'relative',
+      overflow: 'hidden',
+    },
+    athleteHubBorder: {
+      ...StyleSheet.absoluteFillObject,
+      borderWidth: 1,
+      borderColor: Colors.primary,
+      borderRadius: 16,
+      opacity: 0.5,
+    },
+    hubItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 8,
+    },
+    hubItemLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    hubSubtitle: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: Colors.textSecondary,
+      marginTop: 4,
+      letterSpacing: 0.5,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: Colors.border,
+      marginVertical: 12,
+      marginLeft: 56,
+    },
+    logoutButton: {
+      marginHorizontal: 16,
+      backgroundColor: Colors.card,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 16,
+      borderRadius: 16,
+      gap: 8,
+      marginTop: 10,
+      marginBottom: 30,
+    },
+    logoutText: {
+      color: Colors.danger,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    footerInfo: {
+      alignItems: 'center',
+      gap: 4,
+    },
+    footerBrand: {
+      color: Colors.textSecondary,
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 1.5,
+    },
+    footerVersion: {
+      color: Colors.textSecondary,
+      fontSize: 10,
+    },
+  }));
   const router = useRouter();
   const { signOut, user } = useAuth();
   const role = (user?.user_metadata as { role?: string } | undefined)?.role;
@@ -215,139 +350,3 @@ export default function SettingsScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  backButton: {
-    padding: 4,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  section: {
-    marginBottom: 24,
-    paddingHorizontal: 16,
-  },
-  sectionHeader: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginBottom: 12,
-    letterSpacing: 1,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  settingSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  athleteHubContainer: {
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  athleteHubBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    borderRadius: 16,
-    opacity: 0.5,
-  },
-  hubItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  hubItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  hubSubtitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: 12,
-    marginLeft: 56, // Align with text start
-  },
-  logoutButton: {
-    marginHorizontal: 16,
-    backgroundColor: Colors.card,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 8,
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  logoutText: {
-    color: Colors.danger,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  footerInfo: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  footerBrand: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-  },
-  footerVersion: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-  },
-});
