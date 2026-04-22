@@ -18,6 +18,9 @@ export interface User {
   highlightsCount: number;
 }
 
+/** Client-only lifecycle for optimistic media posts (not stored in DB). */
+export type PostUploadStatus = 'uploading' | 'processing' | 'posted' | 'failed';
+
 export interface Post {
   id: string;
   user: User;
@@ -40,6 +43,10 @@ export interface Post {
   poll?: PostPoll;
   /** Optional place label attached at compose time (e.g. city or venue). */
   location?: string;
+  /** Optimistic upload pipeline (omit once persisted as a normal post). */
+  uploadStatus?: PostUploadStatus;
+  /** 0–100 while uploading (optional). */
+  uploadProgress?: number;
 }
 
 export interface PostAsset {

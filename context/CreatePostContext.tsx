@@ -133,7 +133,7 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
   );
   const { user } = useAuth();
   const isCoach = (user?.user_metadata as { role?: string } | undefined)?.role === 'coach';
-  const { addPost } = useFeedPosts();
+  const { addPost, publishOptimisticMediaPost } = useFeedPosts();
   const { profile } = useProfile();
   const [caption, setCaption] = useState('');
   const [composerMode, setComposerMode] = useState<ComposerMode>('post');
@@ -813,7 +813,6 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
       durationDays: pollDurationDays,
       endsAt,
     };
-    const createdAt = new Date().toISOString();
     const postAssets: PostAsset[] | undefined =
       selectedMediaItems.length > 0
         ? selectedMediaItems.map((item) => ({
@@ -821,27 +820,39 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
             type: item.kind === 'video' ? 'video' : 'image',
           }))
         : undefined;
-    const primaryUri = postAssets?.[0]?.uri ?? '';
-    const newPost: Post = {
-      id: faker.string.uuid(),
-      user: author,
-      content: primaryUri,
-      ...(postAssets ? { assets: postAssets } : {}),
-      caption: buildCaptionWithTags(q, taggedUsernames),
-      type: 'poll',
-      poll: pollPayload,
-      likes: 0,
-      comments: 0,
-      reposts: 0,
-      shares: 0,
-      timeAgo: 'Just now',
-      createdAt,
-      ...(postLocation ? { location: postLocation } : {}),
-    };
-    const posted = await addPost(newPost);
-    if (!posted) {
-      Alert.alert('Could not post poll', 'Check your connection and try again.');
-      return;
+    if (postAssets && postAssets.length > 0) {
+      publishOptimisticMediaPost({
+        author,
+        caption: buildCaptionWithTags(q, taggedUsernames),
+        localAssets: postAssets,
+        postKind: 'poll',
+        processingMediaType: postAssets.some((a) => a.type === 'video') ? 'video' : 'image',
+        poll: pollPayload,
+        postType: 'post',
+        ...(postLocation ? { location: postLocation } : {}),
+      });
+    } else {
+      const createdAt = new Date().toISOString();
+      const newPost: Post = {
+        id: faker.string.uuid(),
+        user: author,
+        content: '',
+        caption: buildCaptionWithTags(q, taggedUsernames),
+        type: 'poll',
+        poll: pollPayload,
+        likes: 0,
+        comments: 0,
+        reposts: 0,
+        shares: 0,
+        timeAgo: 'Just now',
+        createdAt,
+        ...(postLocation ? { location: postLocation } : {}),
+      };
+      const posted = await addPost(newPost);
+      if (!posted) {
+        Alert.alert('Could not post poll', 'Check your connection and try again.');
+        return;
+      }
     }
     resetComposerState();
     onClose();
@@ -1044,9 +1055,9 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
         ...base,
         avatar: base.avatar?.trim() ? base.avatar.trim() : DEFAULT_AVATAR,
       };
-      const createdAt = new Date().toISOString();
 
       if (!hasMedia) {
+        const createdAt = new Date().toISOString();
         const newPost: Post = {
           id: faker.string.uuid(),
           user: author,
@@ -1077,30 +1088,18 @@ function CreatePostPanelContent({ onClose, visible }: { onClose: () => void; vis
         type: item.kind === 'video' ? 'video' : 'image',
       }));
       const primaryMedia = postAssets[0];
-      const newPost: Post = {
-        id: faker.string.uuid(),
-        user: author,
-        content: primaryMedia.uri,
-        assets: postAssets,
+      publishOptimisticMediaPost({
+        author,
         caption: captionForPost,
-        likes: 0,
-        comments: 0,
-        reposts: 0,
-        shares: 0,
-        timeAgo: 'Just now',
-        createdAt,
-        type: primaryMedia.type,
+        localAssets: postAssets,
+        postKind: primaryMedia.type,
+        processingMediaType: primaryMedia.type,
         postType: composerMode,
         ...(composerMode === 'clips'
           ? { clipsSource: clipsSourceChip ?? 'highlights' }
           : {}),
         ...(postLocation ? { location: postLocation } : {}),
-      };
-      const posted = await addPost(newPost);
-      if (!posted) {
-        Alert.alert('Could not post', 'Check your connection and try again.');
-        return;
-      }
+      });
       resetComposerState();
       onClose();
     } finally {

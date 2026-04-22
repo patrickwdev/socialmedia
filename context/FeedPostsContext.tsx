@@ -1,21 +1,38 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { MOCK_POSTS, type Post, type PostPoll } from '@/data/mock';
+import { faker } from '@faker-js/faker';
+import { MOCK_POSTS, type Post, type PostAsset, type PostPoll } from '@/data/mock';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import type { Database } from '@/types/database';
+import type { Database, Json } from '@/types/database';
 import type { User } from '@/data/mock';
 import { formatRelativePostTime } from '@/lib/formatRelativePostTime';
+import { uploadPostMediaFile } from '@/lib/postMediaUpload';
+
+export type OptimisticMediaDraft = {
+  author: User;
+  caption: string;
+  localAssets: PostAsset[];
+  postKind: 'video' | 'image' | 'poll';
+  processingMediaType: 'video' | 'image';
+  poll?: PostPoll;
+  postType: 'post' | 'clips';
+  clipsSource?: 'highlights' | 'grinds' | 'clips';
+  location?: string | null;
+};
 
 type FeedPostsContextType = {
   posts: Post[];
   clipsPosts: Post[];
   addPost: (post: Post) => Promise<boolean>;
   deletePost: (postId: string) => Promise<void>;
+  publishOptimisticMediaPost: (draft: OptimisticMediaDraft) => void;
+  retryFailedMediaPost: (failedPost: Post) => void;
 };
 
 const FeedPostsContext = createContext<FeedPostsContextType | undefined>(undefined);
 
 type PostRow = Database['public']['Tables']['posts']['Row'];
+type PostsInsert = Database['public']['Tables']['posts']['Insert'];
 
 function asPostAssetArray(value: Database['public']['Tables']['posts']['Row']['assets']): Post['assets'] {
   if (!Array.isArray(value)) return undefined;
@@ -106,11 +123,35 @@ function mapRowToPost(row: PostRow): Post | null {
   };
 }
 
+function mergeServerPostsWithInflight(
+  serverPosts: Post[],
+  prevPosts: Post[],
+  realIdByTempId: Map<string, string>
+): Post[] {
+  const inflight = prevPosts.filter(
+    (p) =>
+      typeof p.id === 'string' &&
+      p.id.startsWith('temp-') &&
+      p.uploadStatus &&
+      p.uploadStatus !== 'posted'
+  );
+  const keptInflight = inflight.filter((p) => {
+    const mappedReal = realIdByTempId.get(p.id);
+    if (mappedReal && serverPosts.some((s) => s.id === mappedReal)) return false;
+    return true;
+  });
+  const keptIds = new Set(keptInflight.map((p) => p.id));
+  const serverFiltered = serverPosts.filter((s) => !keptIds.has(s.id));
+  return [...keptInflight, ...serverFiltered];
+}
+
 export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>(() => [...MOCK_POSTS]);
   const [loadedFromSupabase, setLoadedFromSupabase] = useState(false);
   const isFetchingRef = useRef(false);
+  const realIdByTempId = useRef(new Map<string, string>());
+  const abortedTempIds = useRef(new Set<string>());
 
   const loadPosts = useCallback(async () => {
     if (isFetchingRef.current) return;
@@ -121,7 +162,7 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const mapped = (data ?? []).map(mapRowToPost).filter((post): post is Post => post !== null);
-      setPosts(mapped);
+      setPosts((prev) => mergeServerPostsWithInflight(mapped, prev, realIdByTempId.current));
       setLoadedFromSupabase(true);
     } finally {
       isFetchingRef.current = false;
@@ -149,48 +190,212 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadPosts]);
 
-  const addPost = useCallback(async (post: Post): Promise<boolean> => {
-    setPosts((prev) => [post, ...prev]);
-    if (!user) return true;
+  const patchPostById = useCallback((postId: string, partial: Partial<Post>) => {
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...partial } : p)));
+  }, []);
 
-    const { error } = await supabase.from('posts').insert({
-      id: post.id,
-      user_id: user.id,
-      caption: post.caption,
-      content: post.content,
-      assets: post.assets ?? null,
-      type: post.type,
-      post_type: post.postType ?? 'post',
-      clips_source: post.clipsSource ?? null,
-      poll: post.poll ?? null,
-      likes: post.likes,
-      comments: post.comments,
-      shares: post.shares,
-      is_live: Boolean(post.isLive),
-      user_snapshot: post.user,
-      location: post.location?.trim() ? post.location.trim() : null,
-      ...(post.createdAt ? { created_at: post.createdAt } : {}),
-    });
+  const runOptimisticMediaPipeline = useCallback(
+    (tempId: string, draft: OptimisticMediaDraft, persistedCreatedAt: string) => {
+      if (!user) return;
 
-    if (error) {
-      if (__DEV__) {
-        console.warn('[posts insert]', error.message, error);
+      const patch = (partial: Partial<Post>) => {
+        patchPostById(tempId, partial);
+      };
+
+      void (async () => {
+        try {
+          const n = draft.localAssets.length;
+          const uploaded: PostAsset[] = [];
+          for (let i = 0; i < n; i++) {
+            if (abortedTempIds.current.has(tempId)) return;
+            const asset = draft.localAssets[i];
+            patch({
+              uploadProgress: Math.max(1, Math.round(((i + 1) / n) * 70)),
+            });
+            const { url, error } = await uploadPostMediaFile(asset.uri, user.id, asset.type);
+            if (error || !url) {
+              patch({ uploadStatus: 'failed', uploadProgress: 0 });
+              return;
+            }
+            uploaded.push({ uri: url, type: asset.type });
+          }
+
+          if (abortedTempIds.current.has(tempId)) return;
+
+          if (draft.processingMediaType === 'video') {
+            patch({ uploadStatus: 'processing', uploadProgress: 82 });
+            await new Promise((r) => setTimeout(r, 450));
+          }
+          if (abortedTempIds.current.has(tempId)) return;
+
+          patch({ uploadProgress: 93 });
+
+          const realId = faker.string.uuid();
+          const insertRow: PostsInsert = {
+            id: realId,
+            user_id: user.id,
+            caption: draft.caption,
+            content: uploaded[0].uri,
+            assets: uploaded as unknown as Json,
+            type: draft.postKind,
+            post_type: draft.postType ?? 'post',
+            clips_source: draft.clipsSource ?? null,
+            poll: (draft.poll ?? null) as unknown as Json,
+            likes: 0,
+            comments: 0,
+            shares: 0,
+            is_live: false,
+            user_snapshot: draft.author as unknown as Json,
+            created_at: persistedCreatedAt,
+            location: draft.location?.trim() ? draft.location.trim() : null,
+          };
+          const { data, error } = await supabase.from('posts').insert(insertRow as never).select().single();
+
+          if (error || !data) {
+            if (__DEV__) {
+              console.warn('[posts insert]', error?.message, error);
+            }
+            patch({ uploadStatus: 'failed', uploadProgress: 0 });
+            return;
+          }
+          if (abortedTempIds.current.has(tempId)) return;
+
+          const finalized = mapRowToPost(data as PostRow);
+          if (!finalized) {
+            patch({ uploadStatus: 'failed', uploadProgress: 0 });
+            return;
+          }
+          realIdByTempId.current.set(tempId, finalized.id);
+          setPosts((prev) => prev.map((p) => (p.id === tempId ? finalized : p)));
+          realIdByTempId.current.delete(tempId);
+        } catch (e) {
+          if (__DEV__) {
+            console.warn('[optimistic media post]', e);
+          }
+          patchPostById(tempId, { uploadStatus: 'failed', uploadProgress: 0 });
+        }
+      })();
+    },
+    [patchPostById, user]
+  );
+
+  const publishOptimisticMediaPost = useCallback(
+    (draft: OptimisticMediaDraft) => {
+      if (!user) return;
+      const tempId = `temp-${faker.string.uuid()}`;
+      const createdAt = new Date().toISOString();
+      const primary = draft.localAssets[0];
+      const optimistic: Post = {
+        id: tempId,
+        user: draft.author,
+        content: primary.uri,
+        assets: draft.localAssets,
+        caption: draft.caption,
+        likes: 0,
+        comments: 0,
+        reposts: 0,
+        shares: 0,
+        timeAgo: 'Just now',
+        createdAt,
+        type: draft.postKind,
+        ...(draft.poll ? { poll: draft.poll } : {}),
+        postType: draft.postType,
+        ...(draft.postType === 'clips' && draft.clipsSource ? { clipsSource: draft.clipsSource } : {}),
+        ...(draft.location?.trim() ? { location: draft.location.trim() } : {}),
+        uploadStatus: 'uploading',
+        uploadProgress: 0,
+      };
+      setPosts((prev) => [optimistic, ...prev]);
+      runOptimisticMediaPipeline(tempId, draft, createdAt);
+    },
+    [runOptimisticMediaPipeline, user]
+  );
+
+  const retryFailedMediaPost = useCallback(
+    (failedPost: Post) => {
+      if (!user) return;
+      if (!failedPost.id.startsWith('temp-') || failedPost.uploadStatus !== 'failed') return;
+      const assets: PostAsset[] =
+        failedPost.assets && failedPost.assets.length > 0
+          ? failedPost.assets
+          : [
+              {
+                uri: failedPost.content,
+                type: failedPost.type === 'video' ? 'video' : 'image',
+              },
+            ];
+      const draft: OptimisticMediaDraft = {
+        // Failed optimistic uploads are media-backed; guard against broader Post unions.
+        postKind: failedPost.type === 'text' ? (assets[0]?.type ?? 'image') : failedPost.type,
+        processingMediaType: assets.some((a) => a.type === 'video') ? 'video' : 'image',
+        author: failedPost.user,
+        caption: failedPost.caption,
+        localAssets: assets,
+        ...(failedPost.poll ? { poll: failedPost.poll } : {}),
+        postType: failedPost.postType ?? 'post',
+        clipsSource: failedPost.clipsSource,
+        location: failedPost.location ?? null,
+      };
+      const persistedCreatedAt = failedPost.createdAt ?? new Date().toISOString();
+      patchPostById(failedPost.id, { uploadStatus: 'uploading', uploadProgress: 0 });
+      runOptimisticMediaPipeline(failedPost.id, draft, persistedCreatedAt);
+    },
+    [patchPostById, runOptimisticMediaPipeline, user]
+  );
+
+  const addPost = useCallback(
+    async (post: Post): Promise<boolean> => {
+      setPosts((prev) => [post, ...prev]);
+      if (!user) return true;
+
+      const insertRow: PostsInsert = {
+        id: post.id,
+        user_id: user.id,
+        caption: post.caption,
+        content: post.content,
+        assets: (post.assets ?? null) as unknown as Json,
+        type: post.type,
+        post_type: post.postType ?? 'post',
+        clips_source: post.clipsSource ?? null,
+        poll: (post.poll ?? null) as unknown as Json,
+        likes: post.likes,
+        comments: post.comments,
+        shares: post.shares,
+        is_live: Boolean(post.isLive),
+        user_snapshot: post.user as unknown as Json,
+        location: post.location?.trim() ? post.location.trim() : null,
+        ...(post.createdAt ? { created_at: post.createdAt } : {}),
+      };
+      const { error } = await supabase.from('posts').insert(insertRow as never);
+
+      if (error) {
+        if (__DEV__) {
+          console.warn('[posts insert]', error.message, error);
+        }
+        setPosts((prev) => prev.filter((p) => p.id !== post.id));
+        if (loadedFromSupabase) {
+          void loadPosts();
+        }
+        return false;
       }
-      setPosts((prev) => prev.filter((p) => p.id !== post.id));
-      if (loadedFromSupabase) {
-        void loadPosts();
-      }
-      return false;
-    }
-    return true;
-  }, [loadPosts, loadedFromSupabase, user]);
+      return true;
+    },
+    [loadPosts, loadedFromSupabase, user]
+  );
 
   const deletePost = useCallback(async (postId: string) => {
+    if (postId.startsWith('temp-')) {
+      abortedTempIds.current.add(postId);
+    }
     let previousPosts: Post[] = [];
     setPosts((prev) => {
       previousPosts = prev;
       return prev.filter((post) => post.id !== postId);
     });
+
+    if (postId.startsWith('temp-')) {
+      return;
+    }
 
     const { error } = await supabase.from('posts').delete().eq('id', postId);
     if (error) {
@@ -204,8 +409,15 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ posts, clipsPosts, addPost, deletePost }),
-    [posts, clipsPosts, addPost, deletePost]
+    () => ({
+      posts,
+      clipsPosts,
+      addPost,
+      deletePost,
+      publishOptimisticMediaPost,
+      retryFailedMediaPost,
+    }),
+    [posts, clipsPosts, addPost, deletePost, publishOptimisticMediaPost, retryFailedMediaPost]
   );
 
   return <FeedPostsContext.Provider value={value}>{children}</FeedPostsContext.Provider>;

@@ -1,4 +1,4 @@
-﻿import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Animated,
   Pressable,
   Alert,
+  ActivityIndicator,
   type LayoutChangeEvent,
   type StyleProp,
   type TextStyle,
@@ -83,7 +84,7 @@ function PostMetaSubline({
 
 export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defaultMuted = false }) => {
   const { user } = useAuth();
-  const { deletePost } = useFeedPosts();
+  const { deletePost, retryFailedMediaPost } = useFeedPosts();
   const relativeTime = useRelativePostTime(post.createdAt, post.timeAgo ?? '', true);
   const locationLabel = post.location?.trim() ?? '';
   const mentionTags = useMemo(() => extractMentionUsernames(post.caption), [post.caption]);
@@ -593,6 +594,65 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       fontSize: 14,
       fontWeight: '600',
     },
+    pendingCard: {
+      backgroundColor: Colors.card,
+      borderRadius: 20,
+      marginBottom: 14,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    pendingThumb: {
+      width: 58,
+      height: 58,
+      borderRadius: 10,
+      overflow: 'hidden',
+      backgroundColor: Colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pendingBody: {
+      flex: 1,
+      gap: 8,
+    },
+    pendingTitle: {
+      color: Colors.text,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    pendingSubtitle: {
+      color: Colors.textSecondary,
+      fontSize: 12,
+      marginTop: -4,
+    },
+    pendingProgressTrack: {
+      width: '100%',
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Colors.border,
+      overflow: 'hidden',
+    },
+    pendingProgressFill: {
+      height: '100%',
+      borderRadius: 2,
+      backgroundColor: Colors.primary,
+    },
+    pendingRetryButton: {
+      alignSelf: 'flex-start',
+      marginTop: 2,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: Colors.primary,
+    },
+    pendingRetryText: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '700',
+    },
   }));
   const mediaItems = useMemo(() => {
     if (post.type === 'text') return [];
@@ -698,6 +758,77 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
   };
 
   const pollHasNoMedia = post.type === 'poll' && mediaItems.length === 0;
+
+  const uploadStatus = post.uploadStatus;
+  const uploadInteractionLocked =
+    uploadStatus === 'uploading' || uploadStatus === 'processing' || uploadStatus === 'failed';
+  const uploadPendingVisual = uploadStatus === 'uploading' || uploadStatus === 'processing';
+
+  const uploadStatusTitle =
+    uploadStatus === 'failed'
+      ? "Couldn't post"
+      : uploadStatus === 'processing'
+        ? 'Processing video…'
+        : uploadStatus
+          ? post.type === 'poll'
+            ? 'Posting poll…'
+            : 'Posting…'
+          : '';
+  const isPendingPostCard = post.id.startsWith('temp-') && uploadInteractionLocked;
+
+  if (isPendingPostCard) {
+    const pendingAsset = mediaItems[0];
+    return (
+      <View style={styles.pendingCard}>
+        <View style={styles.pendingThumb}>
+          {pendingAsset ? (
+            <PostMedia
+              uri={pendingAsset.uri}
+              mediaType={pendingAsset.type}
+              style={{ width: '100%', height: '100%' }}
+              mode="feed"
+              shouldPlayOverride={false}
+              isMutedOverride
+            />
+          ) : null}
+        </View>
+        <View style={styles.pendingBody}>
+          <Text style={styles.pendingTitle}>{uploadStatusTitle || 'Posting…'}</Text>
+          {uploadPendingVisual ? (
+            <Text style={styles.pendingSubtitle}>
+              {typeof post.uploadProgress === 'number'
+                ? `${Math.min(100, Math.max(0, post.uploadProgress))}% uploaded`
+                : 'Uploading media...'}
+            </Text>
+          ) : (
+            <Text style={styles.pendingSubtitle}>Upload failed. Retry to continue.</Text>
+          )}
+          {uploadPendingVisual ? (
+            <View style={styles.pendingProgressTrack}>
+              <View
+                style={[
+                  styles.pendingProgressFill,
+                  { width: `${Math.min(100, Math.max(0, post.uploadProgress ?? 0))}%` },
+                ]}
+              />
+            </View>
+          ) : null}
+          {uploadStatus === 'failed' ? (
+            <TouchableOpacity
+              style={styles.pendingRetryButton}
+              onPress={() => retryFailedMediaPost(post)}
+              accessibilityRole="button"
+              accessibilityLabel="Retry upload"
+            >
+              <Text style={styles.pendingRetryText}>Retry</Text>
+            </TouchableOpacity>
+          ) : (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -1070,7 +1201,10 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
         {post.type === 'text' || pollHasNoMedia ? <View style={styles.textPostActionsDivider} /> : null}
 
         {/* Action Bar */}
-        <View style={styles.actionBar}>
+        <View
+          style={[styles.actionBar, uploadInteractionLocked && { opacity: 0.42 }]}
+          pointerEvents={uploadInteractionLocked ? 'none' : 'auto'}
+        >
             <View style={styles.actionLeft}>
                 <TouchableOpacity style={styles.actionItem}>
                     <Heart size={24} color={Colors.textSecondary} />
