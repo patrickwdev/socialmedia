@@ -67,7 +67,7 @@ export default function ClipsFeed({
       height: 48,
       borderRadius: 24,
       borderWidth: 2,
-      borderColor: 'white',
+      borderColor: Colors.background,
     },
     plusBadge: {
       position: 'absolute',
@@ -80,7 +80,7 @@ export default function ClipsFeed({
       justifyContent: 'center',
       alignItems: 'center',
       borderWidth: 2,
-      borderColor: 'white',
+      borderColor: Colors.background,
     },
     actionBlock: {
       alignItems: 'center',

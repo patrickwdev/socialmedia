@@ -293,7 +293,7 @@ export default function DiscoverScreen() {
       height: 20,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: 'white',
+      borderColor: Colors.background,
     },
     highlightUserName: {
       color: '#E2E8F0',

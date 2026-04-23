@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 4,
-    borderColor: Colors.border,
+    borderColor: Colors.background,
     backgroundColor: Colors.card,
     justifyContent: 'center',
     alignItems: 'center',
