@@ -69,13 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cancelled || !updated) return;
       setUser(updated);
       const { data, error } = await supabase.auth.refreshSession();
-      if (error) {
-        const msg = error.message ?? '';
-        if (msg.includes('Invalid Refresh Token') || msg.includes('Refresh Token Not Found')) {
-          await supabase.auth.signOut();
-          return;
-        }
-      }
       if (!error && data?.session) {
         setSession(data.session);
         setUser(data.session.user ?? updated);

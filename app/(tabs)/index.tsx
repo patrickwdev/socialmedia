@@ -4,14 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  SafeAreaView,
   Platform,
   StatusBar as RNStatusBar,
   FlatList,
-  RefreshControl,
-  ActivityIndicator,
   type ViewToken,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { useFeedPosts } from '@/context/FeedPostsContext';
 import { FeedCard } from '@/components/FeedCard';
@@ -101,26 +99,14 @@ export default function HomeScreen() {
       borderRadius: 2,
     },
     scrollContent: {
-      paddingHorizontal: 0,
-      paddingBottom: 16,
+      padding: 16,
       paddingTop: 8,
-    },
-    feedLoading: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 48,
-    },
-    postDivider: {
-      height: 2,
-      backgroundColor: Colors.border,
     },
   }));
   const router = useRouter();
   const isTabFocused = useIsFocused();
   const { open, visible: isCreatePostOpen } = useCreatePost();
-  const { posts, reloadFeed, feedInitialLoadComplete } = useFeedPosts();
-  const [refreshing, setRefreshing] = useState(false);
+  const { posts } = useFeedPosts();
   const { user } = useAuth();
   const role = (user?.user_metadata as { role?: string } | undefined)?.role;
   const canCreatePost = role !== 'fan' && role !== 'scout';
@@ -154,15 +140,6 @@ export default function HomeScreen() {
     ),
     [isCreatePostOpen, isTabFocused, visiblePostIds]
   );
-
-  const onReload = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await reloadFeed();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [reloadFeed]);
 
   return (
     <SafeAreaView style={[styles.container, bgStyle]}>
@@ -208,30 +185,15 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {!feedInitialLoadComplete ? (
-        <View style={styles.feedLoading} accessibilityLabel="Loading feed">
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={posts}
-          keyExtractor={(item) => item.id}
-          renderItem={renderPost}
-          ItemSeparatorComponent={() => <View style={styles.postDivider} />}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          viewabilityConfig={viewabilityConfig}
-          onViewableItemsChanged={onViewableItemsChanged}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onReload}
-              tintColor={Colors.primary}
-              colors={[Colors.primary]}
-            />
-          }
-        />
-      )}
+      <FlatList
+        data={posts}
+        keyExtractor={(item) => item.id}
+        renderItem={renderPost}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        viewabilityConfig={viewabilityConfig}
+        onViewableItemsChanged={onViewableItemsChanged}
+      />
     </SafeAreaView>
   );
 }

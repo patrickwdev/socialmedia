@@ -1,16 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Dimensions,
-  FlatList,
-  Image,
-  Platform,
-  StatusBar,
-  Text,
-  TouchableOpacity,
-  View,
-  type GestureResponderEvent,
-  type ViewToken,
-} from 'react-native';
+import { Dimensions, FlatList, Image, Platform, StatusBar, Text, TouchableOpacity, View, type ViewToken } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -184,15 +173,7 @@ export default function ClipsFeed({
     Platform.OS === 'ios'
       ? windowHeight - tabBarHeight
       : windowHeight - tabBarHeight + (StatusBar.currentHeight || 0);
-  const { clipsPosts, togglePostLike } = useFeedPosts();
-
-  const handleLikePress = useCallback(
-    (event: GestureResponderEvent, post: Post) => {
-      event.stopPropagation();
-      void togglePostLike(post);
-    },
-    [togglePostLike]
-  );
+  const { clipsPosts } = useFeedPosts();
 
   const initialIndex = useMemo(() => {
     if (!initialClipId) return 0;
@@ -262,18 +243,7 @@ export default function ClipsFeed({
         </View>
 
         <View style={styles.actionBlock}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={item.likedByCurrentUser ? 'Unlike clip' : 'Like clip'}
-            onPress={(event) => handleLikePress(event, item)}
-            activeOpacity={0.8}
-          >
-            <Heart
-              size={26}
-              color={item.likedByCurrentUser ? Colors.danger : 'white'}
-              fill={item.likedByCurrentUser ? Colors.danger : 'transparent'}
-            />
-          </TouchableOpacity>
+          <Heart size={26} color="white" />
           <Text style={styles.actionCount}>
             {item.likes >= 1000 ? `${(item.likes / 1000).toFixed(1)}k` : String(item.likes)}
           </Text>
@@ -318,7 +288,7 @@ export default function ClipsFeed({
       </View>
     </TouchableOpacity>
     ),
-    [isTabFocused, onPressClip, screenHeight, visibleClipIds, bgStyle, handleLikePress, styles]
+    [isTabFocused, onPressClip, screenHeight, visibleClipIds, bgStyle, styles]
   );
 
   return (

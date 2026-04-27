@@ -6,7 +6,6 @@ import { useAuthDeepLinks } from '@/hooks/useAuthDeepLinks';
 import { AuthProvider } from '@/context/AuthContext';
 import { FeedPostsProvider } from '@/context/FeedPostsContext';
 import { CreatePostProvider } from '@/context/CreatePostContext';
-import { NotificationsProvider } from '@/context/NotificationsContext';
 import { ThemeProvider, ThemeStatusBar, useTheme, useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 function AuthDeepLinksBridge() {
@@ -34,11 +33,9 @@ export default function RootLayout() {
         <AuthProvider>
           <AuthDeepLinksBridge />
           <FeedPostsProvider>
-            <NotificationsProvider>
-              <CreatePostProvider>
-                <ThemedStack />
-              </CreatePostProvider>
-            </NotificationsProvider>
+            <CreatePostProvider>
+              <ThemedStack />
+            </CreatePostProvider>
           </FeedPostsProvider>
         </AuthProvider>
       </>

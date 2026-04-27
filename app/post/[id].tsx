@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { MessageCircle, Share2, ArrowLeft, Radio, X } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, ArrowLeft, Radio, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { useFeedPosts } from '@/context/FeedPostsContext';
 import { PostMedia } from '@/components/PostMedia';
@@ -224,6 +224,10 @@ export default function PostDetailsScreen() {
         ) : null}
 
         <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Heart size={18} color="white" />
+            <Text style={styles.statText}>{formatCount(post.likes)}</Text>
+          </View>
           <TouchableOpacity style={styles.statItem} onPress={commentsOpen} activeOpacity={0.85}>
             <MessageCircle size={18} color="white" />
             <Text style={styles.statText}>{formatCount(post.comments)}</Text>
