@@ -47,6 +47,8 @@ export interface Post {
   uploadStatus?: PostUploadStatus;
   /** 0–100 while uploading (optional). */
   uploadProgress?: number;
+  /** Client view state for current user like status. */
+  likedByCurrentUser?: boolean;
 }
 
 export interface PostAsset {
@@ -118,6 +120,7 @@ export const generatePosts = (count: number): Post[] => {
       createdAt,
       isLive: faker.datatype.boolean(0.1),
       type: 'image', // Simulating video with image for now
+      likedByCurrentUser: false,
     };
   });
 };

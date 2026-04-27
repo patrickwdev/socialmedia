@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { ProfileLinkDisplay } from '@/components/ProfileLinkDisplay';
-import { MOCK_FOLLOWING, MOCK_FOLLOWERS, type FollowerItem } from '@/data/mock';
+import type { FollowerItem } from '@/data/mock';
 import { useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import {
@@ -58,9 +58,14 @@ const SHARE_PANEL_HEIGHT = Math.min(height * 0.56, 440);
 
 type ConnectionsTab = 'following' | 'followers';
 type FanContentTab = 'liked' | 'comments' | 'bookmarks';
-const CONNECTIONS_CONFIG: Record<ConnectionsTab, { title: string; data: FollowerItem[] }> = {
-  following: { title: 'Following', data: MOCK_FOLLOWING },
-  followers: { title: 'Followers', data: MOCK_FOLLOWERS },
+const CONNECTIONS_TAB_LABELS: Record<ConnectionsTab, string> = {
+  following: 'Following',
+  followers: 'Followers',
+};
+/** Populated from Supabase when follow lists are wired; empty avoids placeholder/mock rows. */
+const CONNECTIONS_ROWS: Record<ConnectionsTab, FollowerItem[]> = {
+  following: [],
+  followers: [],
 };
 const CONNECTIONS_TABS: ConnectionsTab[] = ['following', 'followers'];
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop';
@@ -76,7 +81,7 @@ export default function FanProfileScreen() {
   const isTabFocused = useIsFocused();
   const { user } = useAuth();
   const { profile, loading } = useProfile();
-  const { posts: feedPosts } = useFeedPosts();
+  const { posts: feedPosts, feedInitialLoadComplete } = useFeedPosts();
   const [activeTab, setActiveTab] = useState<FanContentTab>('liked');
   const [showConnectionsPanel, setShowConnectionsPanel] = useState(false);
   const [connectionsTab, setConnectionsTab] = useState<ConnectionsTab>('following');
@@ -85,13 +90,12 @@ export default function FanProfileScreen() {
   const [showSharePanel, setShowSharePanel] = useState(false);
   const sharePanelSlideAnim = useRef(new Animated.Value(SHARE_PANEL_HEIGHT)).current;
   const bgStyle = useThemeBackgroundStyle();
-  const likedPosts = useMemo(
-    () =>
-      feedPosts
-        .filter((post) => Boolean(post.likedByCurrentUser))
-        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))),
-    [feedPosts]
-  );
+  const likedPosts = useMemo(() => {
+    type PostWithLike = (typeof feedPosts)[number] & { likedByCurrentUser?: boolean };
+    return feedPosts
+      .filter((post) => Boolean((post as PostWithLike).likedByCurrentUser))
+      .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+  }, [feedPosts]);
 
   useEffect(() => {
     if (showConnectionsPanel) {
@@ -111,7 +115,7 @@ export default function FanProfileScreen() {
   }, [showConnectionsPanel, connectionsSlideAnim]);
 
   const connectionsData = useMemo(() => {
-    const data = CONNECTIONS_CONFIG[connectionsTab].data;
+    const data = CONNECTIONS_ROWS[connectionsTab];
     const q = connectionsSearch.trim().toLowerCase();
     if (!q) return data;
     return data.filter(
@@ -740,6 +744,16 @@ export default function FanProfileScreen() {
       fontSize: 14,
       fontWeight: '700',
     },
+    connectionsListEmpty: {
+      paddingVertical: 28,
+      paddingHorizontal: 24,
+      alignItems: 'center',
+    },
+    connectionsListEmptyText: {
+      color: Colors.textSecondary,
+      fontSize: 15,
+      textAlign: 'center',
+    },
   }));
 
   // Prevent a flash of placeholder/default avatar/banner while profile metadata loads.
@@ -835,7 +849,11 @@ export default function FanProfileScreen() {
             </TouchableOpacity>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>
-                {likedPosts.length >= 1000 ? `${(likedPosts.length / 1000).toFixed(1)}k` : String(likedPosts.length)}
+                {!feedInitialLoadComplete
+                  ? '—'
+                  : likedPosts.length >= 1000
+                    ? `${(likedPosts.length / 1000).toFixed(1)}k`
+                    : String(likedPosts.length)}
               </Text>
               <Text style={styles.statLabel}>LIKES</Text>
             </View>
@@ -873,7 +891,11 @@ export default function FanProfileScreen() {
           </View>
 
           {activeTab === 'liked' ? (
-            likedPosts.length === 0 ? (
+            !feedInitialLoadComplete ? (
+              <View style={styles.postsEmptyWrap}>
+                <ActivityIndicator size="large" color={Colors.primary} accessibilityLabel="Loading liked posts" />
+              </View>
+            ) : likedPosts.length === 0 ? (
               <View style={styles.postsEmptyWrap}>
                 <Text style={styles.postsEmptyText}>No liked posts yet</Text>
               </View>
@@ -936,7 +958,7 @@ export default function FanProfileScreen() {
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.connectionsTabLabel, connectionsTab === tab && styles.connectionsTabLabelActive]}>
-                      {CONNECTIONS_CONFIG[tab].title}
+                      {CONNECTIONS_TAB_LABELS[tab]}
                     </Text>
                     {connectionsTab === tab && <View style={styles.connectionsTabIndicator} />}
                   </TouchableOpacity>
@@ -946,6 +968,13 @@ export default function FanProfileScreen() {
                 data={connectionsData}
                 keyExtractor={(item) => item.id}
                 renderItem={renderConnectionsItem}
+                ListEmptyComponent={
+                  <View style={styles.connectionsListEmpty}>
+                    <Text style={styles.connectionsListEmptyText}>
+                      {connectionsTab === 'following' ? 'Not following anyone yet.' : 'No followers yet.'}
+                    </Text>
+                  </View>
+                }
                 ListHeaderComponent={
                   <View style={styles.connectionsSearchWrap}>
                     <Search size={20} color={Colors.textSecondary} style={styles.connectionsSearchIcon} />

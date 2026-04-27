@@ -84,7 +84,7 @@ function PostMetaSubline({
 
 export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defaultMuted = false }) => {
   const { user } = useAuth();
-  const { deletePost, retryFailedMediaPost } = useFeedPosts();
+  const { deletePost, retryFailedMediaPost, togglePostLike } = useFeedPosts();
   const relativeTime = useRelativePostTime(post.createdAt, post.timeAgo ?? '', true);
   const locationLabel = post.location?.trim() ?? '';
   const mentionTags = useMemo(() => extractMentionUsernames(post.caption), [post.caption]);
@@ -100,11 +100,9 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
   const styles = useThemedStylesheet(() => ({
     container: {
       backgroundColor: Colors.card,
-      borderRadius: 24,
-      marginBottom: 20,
+      borderRadius: 0,
+      marginBottom: 0,
       overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: Colors.border,
     },
     headerOverlay: {
       position: 'absolute',
@@ -127,28 +125,13 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       flexShrink: 0,
     },
     mediaOverlayMoreButton: {
-      borderRadius: 18,
-      overflow: 'hidden',
-    },
-    mediaOverlayMoreBlur: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      padding: 8,
       justifyContent: 'center',
       alignItems: 'center',
-      overflow: 'hidden',
-      backgroundColor: 'rgba(0, 0, 0, 0.35)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.22)',
     },
     /** Own-post ⋯ on text/poll (readable on `Colors.card` body). */
     headerOwnMoreButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: Colors.background,
-      borderWidth: 1,
-      borderColor: Colors.border,
+      padding: 8,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -368,15 +351,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       right: 14,
       bottom: 14,
       zIndex: 15,
-    },
-    muteToggleBlur: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      overflow: 'hidden',
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      padding: 8,
     },
     mediaUserOverlay: {
       position: 'absolute',
@@ -866,9 +841,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
               accessibilityLabel="Open post options"
             >
               {showMediaUserOverlay ? (
-                <BlurView intensity={24} style={styles.mediaOverlayMoreBlur}>
-                  <MoreHorizontal size={20} color="#fff" />
-                </BlurView>
+                <MoreHorizontal size={20} color="#fff" />
               ) : (
                 <MoreHorizontal size={20} color={Colors.textSecondary} />
               )}
@@ -976,13 +949,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
                     accessibilityRole="button"
                     accessibilityLabel={isVideoMuted ? 'Unmute video' : 'Mute video'}
                   >
-                    <BlurView intensity={20} style={styles.muteToggleBlur}>
-                      {isVideoMuted ? (
-                        <VolumeX color="#fff" size={18} />
-                      ) : (
-                        <Volume2 color="#fff" size={18} />
-                      )}
-                    </BlurView>
+                    {isVideoMuted ? <VolumeX color="#fff" size={18} /> : <Volume2 color="#fff" size={18} />}
                   </TouchableOpacity>
                 ) : null}
                 {showMediaUserOverlay ? (
@@ -1134,13 +1101,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
               accessibilityRole="button"
               accessibilityLabel={isVideoMuted ? 'Unmute video' : 'Mute video'}
             >
-              <BlurView intensity={20} style={styles.muteToggleBlur}>
-                {isVideoMuted ? (
-                  <VolumeX color="#fff" size={18} />
-                ) : (
-                  <Volume2 color="#fff" size={18} />
-                )}
-              </BlurView>
+              {isVideoMuted ? <VolumeX color="#fff" size={18} /> : <Volume2 color="#fff" size={18} />}
             </TouchableOpacity>
           ) : null}
         </View>
@@ -1206,8 +1167,17 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
           pointerEvents={uploadInteractionLocked ? 'none' : 'auto'}
         >
             <View style={styles.actionLeft}>
-                <TouchableOpacity style={styles.actionItem}>
-                    <Heart size={24} color={Colors.textSecondary} />
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  accessibilityRole="button"
+                  accessibilityLabel={post.likedByCurrentUser ? 'Unlike post' : 'Like post'}
+                  onPress={() => void togglePostLike(post)}
+                >
+                    <Heart
+                      size={24}
+                      color={post.likedByCurrentUser ? Colors.danger : Colors.textSecondary}
+                      fill={post.likedByCurrentUser ? Colors.danger : 'transparent'}
+                    />
                     <Text style={styles.actionText}>
                       {post.likes >= 1000 ? `${(post.likes / 1000).toFixed(1)}k` : String(post.likes)}
                     </Text>
