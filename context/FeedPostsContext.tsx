@@ -1,12 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { faker } from '@faker-js/faker';
-import { MOCK_POSTS, type Post, type PostAsset, type PostPoll } from '@/data/mock';
+import { type Post, type PostAsset, type PostPoll } from '@/data/mock';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import type { Database, Json } from '@/types/database';
 import type { User } from '@/data/mock';
 import { formatRelativePostTime } from '@/lib/formatRelativePostTime';
 import { uploadPostMediaFile } from '@/lib/postMediaUpload';
+import { addLikeNotification, removeLikeNotification } from '@/lib/likeNotifications';
 
 export type OptimisticMediaDraft = {
   author: User;
@@ -23,8 +24,12 @@ export type OptimisticMediaDraft = {
 type FeedPostsContextType = {
   posts: Post[];
   clipsPosts: Post[];
+  /** True after the first Supabase fetch finishes (success or error). */
+  feedInitialLoadComplete: boolean;
+  reloadFeed: () => Promise<void>;
   addPost: (post: Post) => Promise<boolean>;
   deletePost: (postId: string) => Promise<void>;
+  togglePostLike: (post: Post) => Promise<void>;
   publishOptimisticMediaPost: (draft: OptimisticMediaDraft) => void;
   retryFailedMediaPost: (failedPost: Post) => void;
 };
@@ -33,6 +38,7 @@ const FeedPostsContext = createContext<FeedPostsContextType | undefined>(undefin
 
 type PostRow = Database['public']['Tables']['posts']['Row'];
 type PostsInsert = Database['public']['Tables']['posts']['Insert'];
+type PostLikeRow = Database['public']['Tables']['post_likes']['Row'];
 
 function asPostAssetArray(value: Database['public']['Tables']['posts']['Row']['assets']): Post['assets'] {
   if (!Array.isArray(value)) return undefined;
@@ -103,7 +109,7 @@ function mapRowToPost(row: PostRow): Post | null {
     content: row.content,
     assets: asPostAssetArray(row.assets),
     caption: row.caption,
-    likes: row.likes,
+    likes: row.like_count,
     comments: row.comments,
     shares: row.shares,
     timeAgo: formatRelativePostTime(row.created_at),
@@ -120,6 +126,7 @@ function mapRowToPost(row: PostRow): Post | null {
     ...(typeof row.location === 'string' && row.location.trim()
       ? { location: row.location.trim() }
       : {}),
+    likedByCurrentUser: false,
   };
 }
 
@@ -147,27 +154,52 @@ function mergeServerPostsWithInflight(
 
 export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<Post[]>(() => [...MOCK_POSTS]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loadedFromSupabase, setLoadedFromSupabase] = useState(false);
+  const [feedInitialLoadComplete, setFeedInitialLoadComplete] = useState(false);
   const isFetchingRef = useRef(false);
   const realIdByTempId = useRef(new Map<string, string>());
   const abortedTempIds = useRef(new Set<string>());
+  const likeToggleInFlightRef = useRef(new Set<string>());
 
   const loadPosts = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     try {
-      const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
-      if (error) {
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (postsError) {
         return;
       }
-      const mapped = (data ?? []).map(mapRowToPost).filter((post): post is Post => post !== null);
+
+      const postIds = (postsData ?? []).map((row) => row.id);
+      let likedPostIdSet = new Set<string>();
+
+      if (user?.id && postIds.length > 0) {
+        const { data: likesData, error: likesError } = await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .in('post_id', postIds);
+
+        if (!likesError) {
+          likedPostIdSet = new Set((likesData as Pick<PostLikeRow, 'post_id'>[] | null)?.map((l) => l.post_id) ?? []);
+        }
+      }
+
+      const mapped = (postsData ?? [])
+        .map(mapRowToPost)
+        .filter((post): post is Post => post !== null)
+        .map((post) => ({ ...post, likedByCurrentUser: likedPostIdSet.has(post.id) }));
       setPosts((prev) => mergeServerPostsWithInflight(mapped, prev, realIdByTempId.current));
       setLoadedFromSupabase(true);
     } finally {
       isFetchingRef.current = false;
+      setFeedInitialLoadComplete(true);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     void loadPosts();
@@ -175,10 +207,22 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const channel = supabase
-      .channel('public:posts:realtime')
+      .channel(`public:posts-and-post-likes:realtime:${user?.id ?? 'anon'}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'posts' },
+        () => {
+          void loadPosts();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'post_likes',
+          ...(user?.id ? { filter: `user_id=eq.${user.id}` } : {}),
+        },
         () => {
           void loadPosts();
         }
@@ -188,7 +232,7 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [loadPosts]);
+  }, [loadPosts, user?.id]);
 
   const patchPostById = useCallback((postId: string, partial: Partial<Post>) => {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...partial } : p)));
@@ -241,7 +285,7 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
             post_type: draft.postType ?? 'post',
             clips_source: draft.clipsSource ?? null,
             poll: (draft.poll ?? null) as unknown as Json,
-            likes: 0,
+            like_count: 0,
             comments: 0,
             shares: 0,
             is_live: false,
@@ -358,7 +402,7 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
         post_type: post.postType ?? 'post',
         clips_source: post.clipsSource ?? null,
         poll: (post.poll ?? null) as unknown as Json,
-        likes: post.likes,
+        like_count: post.likes,
         comments: post.comments,
         shares: post.shares,
         is_live: Boolean(post.isLive),
@@ -403,6 +447,69 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const togglePostLike = useCallback(
+    async (post: Post) => {
+      if (!user?.id) return;
+      if (!post?.id || post.id.startsWith('temp-')) return;
+      if (likeToggleInFlightRef.current.has(post.id)) return;
+
+      const isCurrentlyLiked = Boolean(post.likedByCurrentUser);
+      const nextLiked = !isCurrentlyLiked;
+      const nextLikeCount = Math.max(0, (post.likes ?? 0) + (nextLiked ? 1 : -1));
+      likeToggleInFlightRef.current.add(post.id);
+
+      patchPostById(post.id, {
+        likedByCurrentUser: nextLiked,
+        likes: nextLikeCount,
+      });
+      try {
+        const { data: serverLikeCount, error: postUpdateError } = await supabase.rpc('set_post_like', {
+          p_post_id: post.id,
+          p_user_id: user.id,
+          p_like: nextLiked,
+        });
+
+        if (postUpdateError) {
+          patchPostById(post.id, {
+            likedByCurrentUser: isCurrentlyLiked,
+            likes: post.likes ?? 0,
+          });
+          return;
+        }
+
+        patchPostById(post.id, {
+          likedByCurrentUser: nextLiked,
+          likes: typeof serverLikeCount === 'number' ? serverLikeCount : nextLikeCount,
+        });
+
+        // Keep like interactions resilient: notification side-effects should not
+        // block the like action if they fail.
+        try {
+          if (nextLiked) {
+            await addLikeNotification({
+              postId: post.id,
+              actorId: user.id,
+              recipientId: post.user.id,
+            });
+          } else {
+            await removeLikeNotification({
+              postId: post.id,
+              actorId: user.id,
+              recipientId: post.user.id,
+            });
+          }
+        } catch (notificationError) {
+          if (__DEV__) {
+            console.warn('[like notification]', notificationError);
+          }
+        }
+      } finally {
+        likeToggleInFlightRef.current.delete(post.id);
+      }
+    },
+    [patchPostById, user?.id]
+  );
+
   const clipsPosts = useMemo(
     () => posts.filter((post) => post.postType === 'clips' && post.type === 'video'),
     [posts]
@@ -412,12 +519,25 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
     () => ({
       posts,
       clipsPosts,
+      feedInitialLoadComplete,
+      reloadFeed: loadPosts,
       addPost,
       deletePost,
+      togglePostLike,
       publishOptimisticMediaPost,
       retryFailedMediaPost,
     }),
-    [posts, clipsPosts, addPost, deletePost, publishOptimisticMediaPost, retryFailedMediaPost]
+    [
+      posts,
+      clipsPosts,
+      feedInitialLoadComplete,
+      loadPosts,
+      addPost,
+      deletePost,
+      togglePostLike,
+      publishOptimisticMediaPost,
+      retryFailedMediaPost,
+    ]
   );
 
   return <FeedPostsContext.Provider value={value}>{children}</FeedPostsContext.Provider>;
