@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,7 @@ import { useFeedPosts } from '@/context/FeedPostsContext';
 import { useRelativePostTime } from '@/hooks/useRelativePostTime';
 import { useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 import { captionWithoutMentionTokens, extractMentionUsernames } from '@/lib/parseCaptionMentions';
+import { CommentList } from '@/components/CommentList';
 
 const TEXT_POST_BODY_FONT_SIZE = 13;
 const TEXT_POST_BODY_MAX_WIDTH = Math.round(TEXT_POST_BODY_FONT_SIZE * 76 * 0.53);
@@ -93,7 +94,12 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
   const [activeAssetIndex, setActiveAssetIndex] = useState(0);
   const [mediaWidth, setMediaWidth] = useState(0);
   const [isVideoMuted, setIsVideoMuted] = useState(defaultMuted);
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [optimisticCommentDelta, setOptimisticCommentDelta] = useState(0);
+  const [liveCommentCount, setLiveCommentCount] = useState(post.comments ?? 0);
   const [menuVisible, setMenuVisible] = useState(false);
+  const commentsSlideAnim = useRef(new Animated.Value(640)).current;
+  const commentsBackdropAnim = useRef(new Animated.Value(0)).current;
   const menuSlideAnim = useRef(new Animated.Value(260)).current;
   const menuBackdropAnim = useRef(new Animated.Value(0)).current;
   const bgStyle = useThemeBackgroundStyle();
@@ -569,6 +575,50 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       fontSize: 14,
       fontWeight: '600',
     },
+    commentsSheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: '78%',
+      backgroundColor: Colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      overflow: 'hidden',
+    },
+    commentsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: 4,
+      paddingBottom: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Colors.border,
+    },
+    commentsGrabber: {
+      width: 42,
+      height: 5,
+      borderRadius: 999,
+      alignSelf: 'center',
+      backgroundColor: 'rgba(255,255,255,0.25)',
+      marginTop: 10,
+      marginBottom: 8,
+    },
+    commentsHeaderTitle: {
+      color: Colors.text,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    commentsHeaderLeftSpacer: {
+      width: 44,
+    },
+    commentsHeaderRightSpacer: {
+      width: 44,
+    },
+    commentsBody: {
+      flex: 1,
+    },
     pendingCard: {
       backgroundColor: Colors.card,
       borderRadius: 20,
@@ -683,6 +733,37 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
     ]).start(() => setMenuVisible(false));
   };
 
+  const openCommentsPanel = () => {
+    setIsCommentsOpen(true);
+    Animated.parallel([
+      Animated.timing(commentsSlideAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(commentsBackdropAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeCommentsPanel = () => {
+    Animated.parallel([
+      Animated.timing(commentsSlideAnim, {
+        toValue: 640,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(commentsBackdropAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setIsCommentsOpen(false));
+  };
+
   const handleDeletePost = () => {
     Alert.alert('Delete post?', 'This action cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
@@ -750,6 +831,11 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
             : 'Posting…'
           : '';
   const isPendingPostCard = post.id.startsWith('temp-') && uploadInteractionLocked;
+  useEffect(() => {
+    setLiveCommentCount(post.comments ?? 0);
+  }, [post.comments, post.id]);
+
+  const displayedCommentCount = Math.max(0, liveCommentCount + optimisticCommentDelta);
 
   if (isPendingPostCard) {
     const pendingAsset = mediaItems[0];
@@ -1182,12 +1268,17 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
                       {post.likes >= 1000 ? `${(post.likes / 1000).toFixed(1)}k` : String(post.likes)}
                     </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionItem}>
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  accessibilityRole="button"
+                  accessibilityLabel={isCommentsOpen ? 'Hide comments' : 'Show comments'}
+                  onPress={() => (isCommentsOpen ? closeCommentsPanel() : openCommentsPanel())}
+                >
                     <MessageCircle size={24} color={Colors.textSecondary} />
                     <Text style={styles.actionText}>
-                      {post.comments >= 1000
-                        ? `${(post.comments / 1000).toFixed(1)}k`
-                        : String(post.comments)}
+                      {displayedCommentCount >= 1000
+                        ? `${(displayedCommentCount / 1000).toFixed(1)}k`
+                        : String(displayedCommentCount)}
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1212,6 +1303,29 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
             </TouchableOpacity>
         </View>
       </View>
+      <Modal visible={isCommentsOpen} transparent animationType="none" onRequestClose={closeCommentsPanel}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeCommentsPanel}>
+          <Animated.View style={[styles.menuBackdrop, { opacity: commentsBackdropAnim }]} />
+        </Pressable>
+        <Animated.View style={[styles.commentsSheet, bgStyle, { transform: [{ translateY: commentsSlideAnim }] }]}>
+          <View style={styles.commentsGrabber} />
+          <View style={styles.commentsHeader}>
+            <View style={styles.commentsHeaderLeftSpacer} />
+            <Text style={styles.commentsHeaderTitle}>Comments</Text>
+            <View style={styles.commentsHeaderRightSpacer} />
+          </View>
+          <View style={styles.commentsBody}>
+            <CommentList
+              postId={post.id}
+              onCommentCountDelta={(delta) => setOptimisticCommentDelta((prev) => prev + delta)}
+              onCommentCountSync={(count) => {
+                setLiveCommentCount(count);
+                setOptimisticCommentDelta(0);
+              }}
+            />
+          </View>
+        </Animated.View>
+      </Modal>
       <Modal visible={menuVisible} transparent animationType="none" onRequestClose={closeMenu}>
         <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu}>
           <Animated.View style={[styles.menuBackdrop, { opacity: menuBackdropAnim }]} />

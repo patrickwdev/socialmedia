@@ -126,6 +126,56 @@ export interface Database {
           created_at?: string;
         };
       };
+      comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          parent_id: string | null;
+          content: string;
+          media_url: string | null;
+          media_type: 'image' | 'video' | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: string;
+          parent_id?: string | null;
+          content: string;
+          media_url?: string | null;
+          media_type?: 'image' | 'video' | null;
+          created_at?: string;
+        };
+        Update: {
+          post_id?: string;
+          user_id?: string;
+          parent_id?: string | null;
+          content?: string;
+          media_url?: string | null;
+          media_type?: 'image' | 'video' | null;
+          created_at?: string;
+        };
+      };
+      comment_likes: {
+        Row: {
+          id: string;
+          comment_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          comment_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          comment_id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,23 @@ import {
   ScrollView,
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Search } from 'lucide-react-native';
 import { useThemeBackgroundStyle } from '@/context/ThemeContext';
 
 export default function SearchScreen() {
   const bgStyle = useThemeBackgroundStyle();
   const router = useRouter();
+  const params = useLocalSearchParams<{ q?: string | string[] }>();
   const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    const raw = params.q;
+    const next = Array.isArray(raw) ? raw[0] : raw;
+    if (typeof next === 'string' && next.trim()) {
+      setQuery(next);
+    }
+  }, [params.q]);
 
   return (
     <SafeAreaView style={[styles.container, bgStyle]}>
