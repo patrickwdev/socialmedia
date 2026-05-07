@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import { Colors } from '@/constants/Colors';
 import { ProfileLinkDisplay } from '@/components/ProfileLinkDisplay';
 import type { FollowerItem } from '@/data/mock';
 import { useRouter } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import {
   ArrowLeft,
   MoreHorizontal,
@@ -80,8 +80,14 @@ export default function FanProfileScreen() {
   const router = useRouter();
   const isTabFocused = useIsFocused();
   const { user } = useAuth();
-  const { profile, loading } = useProfile();
+  const { profile, loading, refetch } = useProfile();
   const { posts: feedPosts, feedInitialLoadComplete } = useFeedPosts();
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch])
+  );
   const [activeTab, setActiveTab] = useState<FanContentTab>('liked');
   const [showConnectionsPanel, setShowConnectionsPanel] = useState(false);
   const [connectionsTab, setConnectionsTab] = useState<ConnectionsTab>('following');
@@ -294,8 +300,6 @@ export default function FanProfileScreen() {
       width: 100,
       height: 100,
       borderRadius: 50,
-      borderWidth: 4,
-      borderColor: Colors.background,
     },
     actionButtons: {
       flexDirection: 'row',
@@ -321,6 +325,9 @@ export default function FanProfileScreen() {
     nameSection: {
       marginBottom: 24,
     },
+    identityStack: {
+      gap: 1,
+    },
     nameRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -336,30 +343,26 @@ export default function FanProfileScreen() {
       fontSize: 18,
       fontWeight: '800',
       color: Colors.text,
-      marginTop: -2,
-      marginBottom: 0,
     },
     subtitle: {
-      color: Colors.text,
+      color: Colors.textSecondary,
       fontSize: 15,
-      lineHeight: 22,
+      marginTop: -2,
+      marginBottom: 10,
     },
     bioInSubtitle: {
       color: Colors.text,
       fontSize: 15,
-      lineHeight: 22,
+      lineHeight: 20,
       marginBottom: 0,
     },
     detailsSection: {
-      marginTop: -2,
-      gap: 3,
+      marginTop: 1,
+      gap: 1,
     },
     locationRow: {
       flexDirection: 'row',
       alignItems: 'center',
-    },
-    locationRowCompact: {
-      marginTop: -4,
     },
     locationIcon: {
       marginRight: 6,
@@ -373,13 +376,6 @@ export default function FanProfileScreen() {
       flexDirection: 'row',
       alignItems: 'center',
       alignSelf: 'flex-start',
-      marginTop: -4,
-    },
-    profileLinkRowNoBio: {
-      marginTop: -6,
-    },
-    profileLinkRowAfterBio: {
-      marginTop: -6,
     },
     profileLinkIcon: {
       marginRight: 6,
@@ -392,8 +388,8 @@ export default function FanProfileScreen() {
     },
     bio: {
       color: Colors.text,
-      fontSize: 14,
-      lineHeight: 22,
+      fontSize: 15,
+      lineHeight: 20,
     },
     sharePanelBody: {
       paddingHorizontal: 16,
@@ -765,6 +761,14 @@ export default function FanProfileScreen() {
     );
   }
 
+  if (!profile) {
+    return (
+      <View style={[styles.container, bgStyle, styles.centered]}>
+        <Text style={{ color: Colors.textSecondary, fontSize: 16, fontWeight: '600' }}>Could not load profile.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, bgStyle]}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -808,15 +812,17 @@ export default function FanProfileScreen() {
           </View>
 
           <View style={styles.nameSection}>
-            <View style={styles.nameRow}>
-              <Text style={styles.name}>{displayName}</Text>
+            <View style={styles.identityStack}>
+              <View style={styles.nameRow}>
+                <Text style={styles.name}>{displayName}</Text>
+              </View>
+              <Text style={styles.username}>@{username}</Text>
             </View>
-            <Text style={styles.username}>@{username}</Text>
             <View style={styles.detailsSection}>
               {hasBio ? <Text style={styles.bioInSubtitle}>{profile.bio}</Text> : null}
 
               {hasLocation ? (
-                <View style={[styles.locationRow, hasBio && styles.locationRowCompact]}>
+                <View style={styles.locationRow}>
                   <MapPin size={14} color={Colors.textSecondary} style={styles.locationIcon} />
                   <Text style={styles.locationText}>{profile.location}</Text>
                 </View>
@@ -826,11 +832,7 @@ export default function FanProfileScreen() {
                   displayUrl={profileLink}
                   normalizedHref={normalizedProfileLink}
                   icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.profileLinkIcon} />}
-                  rowStyle={[
-                    styles.profileLinkRow,
-                    !hasBio && hasLocation && styles.profileLinkRowNoBio,
-                    hasBio && hasLink && styles.profileLinkRowAfterBio,
-                  ]}
+                  rowStyle={styles.profileLinkRow}
                   textStyle={styles.profileLinkText}
                 />
               ) : null}
@@ -847,16 +849,6 @@ export default function FanProfileScreen() {
               <Text style={styles.statValue}>{profile?.followers ?? '0'}</Text>
               <Text style={styles.statLabel}>FOLLOWERS</Text>
             </TouchableOpacity>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {!feedInitialLoadComplete
-                  ? '—'
-                  : likedPosts.length >= 1000
-                    ? `${(likedPosts.length / 1000).toFixed(1)}k`
-                    : String(likedPosts.length)}
-              </Text>
-              <Text style={styles.statLabel}>LIKES</Text>
-            </View>
           </View>
 
           {/* Content tabs - same style as athlete */}
@@ -1113,7 +1105,7 @@ export default function FanProfileScreen() {
 
                 <TouchableOpacity
                   style={styles.shareActionButton}
-                  onPress={handleCopyLink}
+                  onPress={() => void handleCopyLink()}
                   activeOpacity={0.7}
                   disabled={!shareProfileUrl}
                 >

@@ -8,6 +8,7 @@ import type { User } from '@/data/mock';
 import { formatRelativePostTime } from '@/lib/formatRelativePostTime';
 import { uploadPostMediaFile } from '@/lib/postMediaUpload';
 import { addLikeNotification, removeLikeNotification } from '@/lib/likeNotifications';
+import { userFromPostSnapshot } from '@/lib/userFromPostSnapshot';
 
 export type OptimisticMediaDraft = {
   author: User;
@@ -39,6 +40,12 @@ const FeedPostsContext = createContext<FeedPostsContextType | undefined>(undefin
 type PostRow = Database['public']['Tables']['posts']['Row'];
 type PostsInsert = Database['public']['Tables']['posts']['Insert'];
 type PostLikeRow = Database['public']['Tables']['post_likes']['Row'];
+type ProfilePrefillRow = {
+  id: string;
+  display_name: string | null;
+  followers_count: number | null;
+  following_count: number | null;
+};
 
 function asPostAssetArray(value: Database['public']['Tables']['posts']['Row']['assets']): Post['assets'] {
   if (!Array.isArray(value)) return undefined;
@@ -76,31 +83,8 @@ function asPostPoll(value: PostRow['poll']): PostPoll | undefined {
   return { question: o.question.trim(), choices, durationDays, endsAt };
 }
 
-function asFeedUser(snapshot: Database['public']['Tables']['posts']['Row']['user_snapshot'], userId: string): User | null {
-  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;
-  const base = snapshot as Record<string, unknown>;
-  if (typeof base.name !== 'string' || typeof base.username !== 'string') return null;
-  return {
-    id: userId,
-    name: base.name,
-    username: base.username,
-    avatar: typeof base.avatar === 'string' ? base.avatar : '',
-    banner: typeof base.banner === 'string' ? base.banner : undefined,
-    isVerified: Boolean(base.isVerified),
-    isAthlete: Boolean(base.isAthlete),
-    sport: typeof base.sport === 'string' ? base.sport : '',
-    team: typeof base.team === 'string' ? base.team : undefined,
-    bio: typeof base.bio === 'string' ? base.bio : undefined,
-    location: typeof base.location === 'string' ? base.location : undefined,
-    followers: typeof base.followers === 'string' ? base.followers : '0',
-    fans: typeof base.fans === 'string' ? base.fans : '0',
-    following: typeof base.following === 'string' ? base.following : '0',
-    highlightsCount: typeof base.highlightsCount === 'number' ? base.highlightsCount : 0,
-  };
-}
-
 function mapRowToPost(row: PostRow): Post | null {
-  const user = asFeedUser(row.user_snapshot, row.user_id);
+  const user = userFromPostSnapshot(row.user_snapshot, row.user_id);
   if (!user) return null;
   const poll = asPostPoll(row.poll);
   return {
@@ -127,6 +111,19 @@ function mapRowToPost(row: PostRow): Post | null {
       ? { location: row.location.trim() }
       : {}),
     likedByCurrentUser: false,
+  };
+}
+
+function applyProfilePrefillToPost(post: Post, prefill: ProfilePrefillRow | undefined): Post {
+  if (!prefill) return post;
+  return {
+    ...post,
+    user: {
+      ...post.user,
+      name: prefill.display_name?.trim() || post.user.name,
+      followers: prefill.followers_count == null ? post.user.followers : String(prefill.followers_count),
+      following: prefill.following_count == null ? post.user.following : String(prefill.following_count),
+    },
   };
 }
 
@@ -174,6 +171,20 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      const userIds = Array.from(new Set((postsData ?? []).map((row) => row.user_id))).filter(Boolean);
+      let profilePrefillById = new Map<string, ProfilePrefillRow>();
+      if (userIds.length > 0) {
+        const { data: profileRows, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, followers_count, following_count')
+          .in('id', userIds);
+        if (!profilesError) {
+          profilePrefillById = new Map(
+            (profileRows as ProfilePrefillRow[] | null)?.map((row) => [row.id, row]) ?? []
+          );
+        }
+      }
+
       const postIds = (postsData ?? []).map((row) => row.id);
       let likedPostIdSet = new Set<string>();
 
@@ -192,6 +203,7 @@ export function FeedPostsProvider({ children }: { children: React.ReactNode }) {
       const mapped = (postsData ?? [])
         .map(mapRowToPost)
         .filter((post): post is Post => post !== null)
+        .map((post) => applyProfilePrefillToPost(post, profilePrefillById.get(post.user.id)))
         .map((post) => ({ ...post, likedByCurrentUser: likedPostIdSet.has(post.id) }));
       setPosts((prev) => mergeServerPostsWithInflight(mapped, prev, realIdByTempId.current));
       setLoadedFromSupabase(true);

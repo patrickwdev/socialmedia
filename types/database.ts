@@ -33,6 +33,7 @@ export interface Database {
           created_at: string;
           location: string | null;
         };
+        Relationships: [];
         Insert: {
           id?: string;
           user_id: string;
@@ -68,9 +69,45 @@ export interface Database {
         };
       };
       profiles: {
-        Row: { id: string; username: string; email: string };
+        Row: {
+          id: string;
+          username: string;
+          email: string;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          followers_count?: number;
+          following_count?: number;
+          fans_count?: number;
+        };
+        Relationships: [];
         Insert: { id: string; username: string; email: string };
-        Update: { username?: string; email?: string };
+        Update: {
+          username?: string;
+          email?: string;
+          followers_count?: number;
+          following_count?: number;
+          fans_count?: number;
+        };
+      };
+      user_push_tokens: {
+        Row: {
+          user_id: string;
+          expo_push_token: string;
+          platform: string;
+          created_at?: string;
+        };
+        Relationships: [];
+        Insert: {
+          user_id: string;
+          expo_push_token: string;
+          platform: string;
+          created_at?: string;
+        };
+        Update: {
+          expo_push_token?: string;
+          platform?: string;
+          created_at?: string;
+        };
       };
       notifications: {
         Row: {
@@ -108,6 +145,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       post_likes: {
         Row: {
@@ -125,6 +163,39 @@ export interface Database {
           user_id?: string;
           created_at?: string;
         };
+        Relationships: [];
+      };
+      profile_follows: {
+        Row: {
+          follower_id: string;
+          following_id: string;
+          created_at: string;
+        };
+        Insert: {
+          follower_id: string;
+          following_id: string;
+          created_at?: string;
+        };
+        Update: {
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      profile_fans: {
+        Row: {
+          fan_id: string;
+          athlete_id: string;
+          created_at: string;
+        };
+        Insert: {
+          fan_id: string;
+          athlete_id: string;
+          created_at?: string;
+        };
+        Update: {
+          created_at?: string;
+        };
+        Relationships: [];
       };
       comments: {
         Row: {
@@ -156,6 +227,7 @@ export interface Database {
           media_type?: 'image' | 'video' | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       comment_likes: {
         Row: {
@@ -175,6 +247,7 @@ export interface Database {
           user_id?: string;
           created_at?: string;
         };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;

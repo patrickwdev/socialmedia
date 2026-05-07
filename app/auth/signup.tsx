@@ -242,6 +242,10 @@ export default function SignUpScreen() {
       setError('Please fill in all fields.');
       return;
     }
+    if (role == null) {
+      setError('Please select an account type.');
+      return;
+    }
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
@@ -250,7 +254,7 @@ export default function SignUpScreen() {
     const metadata: Parameters<typeof signUp>[2] = {
       full_name: fullName,
       profile_name: profileName.trim(),
-      role: role ?? 'athlete',
+      role,
       username: username.trim(),
     };
     if (role === 'athlete') {
@@ -1292,12 +1296,14 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     alignSelf: 'center',
-    paddingVertical: 12,
+    marginTop: 16,
+    paddingVertical: 14,
     marginBottom: 16,
+    alignItems: 'center',
   },
   skipButtonText: {
     color: Colors.textSecondary,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   bannerUploadArea: {
@@ -1383,16 +1389,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
-  },
-  skipButton: {
-    marginTop: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',

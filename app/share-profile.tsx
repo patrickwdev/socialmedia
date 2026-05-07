@@ -11,7 +11,6 @@ import {
   Alert,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system/legacy';
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '@/constants/Colors';
 import { CURRENT_USER } from '@/data/mock';
@@ -45,26 +44,6 @@ export default function ShareProfileScreen() {
     } catch {
       Alert.alert('Error', 'Could not copy link.');
     }
-  };
-
-  const handleDownload = () => {
-    if (!qrRef.current) return;
-    qrRef.current.toDataURL(async (data: string) => {
-      try {
-        const base64 = data.replace(/^data:image\/png;base64,/, '');
-        const path = `${FileSystem.cacheDirectory}profile-qr-${CURRENT_USER.username}.png`;
-        await FileSystem.writeAsStringAsync(path, base64, {
-          encoding: 'base64',
-        });
-        await Share.share({
-          message: 'My profile QR code',
-          url: Platform.OS === 'ios' ? path : `file://${path}`,
-          title: 'Save QR code',
-        });
-      } catch (e) {
-        Alert.alert('Error', 'Could not save QR code.');
-      }
-    });
   };
 
   return (
