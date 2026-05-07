@@ -38,9 +38,6 @@ import { useRelativePostTime } from '@/hooks/useRelativePostTime';
 import { useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 import { captionWithoutMentionTokens, extractMentionUsernames } from '@/lib/parseCaptionMentions';
 import { CommentList } from '@/components/CommentList';
-import { useRouter } from 'expo-router';
-import { openUserProfile, viewerFanNavHint, viewerFollowNavHint } from '@/lib/openUserProfile';
-import { useViewerFollows } from '@/context/ViewerFollowsContext';
 
 const TEXT_POST_BODY_FONT_SIZE = 13;
 const TEXT_POST_BODY_MAX_WIDTH = Math.round(TEXT_POST_BODY_FONT_SIZE * 76 * 0.53);
@@ -61,22 +58,6 @@ type PostMetaSublineProps = {
   sportEmphasisStyle: StyleProp<TextStyle>;
   secondaryStyle: StyleProp<TextStyle>;
 };
-
-function getProfileSubtitle(user: Post['user']): string | null {
-  const raw = user as unknown as Record<string, unknown>;
-  const role = typeof raw.role === 'string' ? raw.role.trim().toLowerCase() : '';
-  const professionRaw = typeof raw.profession === 'string' ? raw.profession.trim() : '';
-  const school = typeof raw.school === 'string' ? raw.school.trim() : '';
-  const team = user.team?.trim() ?? '';
-  const fallbackProfession =
-    role === 'coach' ? 'Coach' : role === 'scout' ? 'Scout' : user.isAthlete ? user.sport.trim() || 'Athlete' : '';
-  const profession = professionRaw || fallbackProfession;
-  const org = team || school;
-  if (!profession && !org) return null;
-  if (!profession) return org;
-  if (!org) return profession;
-  return `${profession} · ${org}`;
-}
 
 /** Sport, time, and location on one line with a consistent middle dot. */
 function PostMetaSubline({
@@ -104,19 +85,11 @@ function PostMetaSubline({
 
 export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defaultMuted = false }) => {
   const { user } = useAuth();
-  const router = useRouter();
   const { deletePost, retryFailedMediaPost, togglePostLike } = useFeedPosts();
-  const { isViewerFollowingUser, isViewerFanningUser } = useViewerFollows();
   const relativeTime = useRelativePostTime(post.createdAt, post.timeAgo ?? '', true);
   const locationLabel = post.location?.trim() ?? '';
   const mentionTags = useMemo(() => extractMentionUsernames(post.caption), [post.caption]);
   const captionBody = useMemo(() => captionWithoutMentionTokens(post.caption), [post.caption]);
-  const profileSubtitle = useMemo(() => getProfileSubtitle(post.user), [post.user]);
-  const postUserRole = useMemo(() => {
-    const rawUser = post.user as unknown as Record<string, unknown>;
-    const roleValue = rawUser.role;
-    return typeof roleValue === 'string' ? roleValue.trim().toLowerCase() : '';
-  }, [post.user]);
   const isOwnPost = user?.id === post.user.id;
   const [activeAssetIndex, setActiveAssetIndex] = useState(0);
   const [mediaWidth, setMediaWidth] = useState(0);
@@ -440,15 +413,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 2,
     },
-    mediaOverlaySubtitle: {
-      color: 'rgba(255,255,255,0.9)',
-      fontSize: 12,
-      lineHeight: 16,
-      fontWeight: '500',
-      textShadowColor: 'rgba(0,0,0,0.45)',
-      textShadowOffset: { width: 0, height: 1 },
-      textShadowRadius: 2,
-    },
     postMetaSport: {
       fontSize: 12,
       fontWeight: '600',
@@ -504,13 +468,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       color: Colors.textSecondary,
       fontSize: 12,
       lineHeight: 16,
-    },
-    profileSubtitle: {
-      color: Colors.textSecondary,
-      fontSize: 12,
-      lineHeight: 16,
-      fontWeight: '500',
-      marginBottom: 1,
     },
     captionBlock: {
       marginBottom: 16,
@@ -821,21 +778,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
     ]);
   };
 
-  const handleAvatarPress = () => {
-    openUserProfile(router, user?.id, {
-      userId: post.user.id,
-      username: post.user.username,
-      avatar: post.user.avatar,
-      displayName: post.user.name,
-      banner: post.user.banner,
-      followers: post.user.followers,
-      following: post.user.following,
-      role: postUserRole,
-      ...viewerFollowNavHint(user?.id, post.user.id, isViewerFollowingUser),
-      ...viewerFanNavHint(user?.id, post.user.id, isViewerFanningUser),
-    });
-  };
-
   const renderPollCardBody = () => {
     if (!post.poll) return null;
     return (
@@ -998,26 +940,16 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
       {post.type === 'text' ? (
         <View style={styles.textPostContent}>
           <View style={styles.textPostUserRow}>
-            <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Open @${post.user.username} profile`}>
-              <Image source={{ uri: post.user.avatar }} style={styles.textPostCornerAvatar} />
-            </TouchableOpacity>
+            <Image source={{ uri: post.user.avatar }} style={styles.textPostCornerAvatar} />
             <View style={styles.textPostUserTextCol}>
               <View style={styles.textPostUserLine}>
-                <TouchableOpacity
-                  onPress={handleAvatarPress}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open @${post.user.username} profile`}
-                >
-                  <Text style={styles.textPostUsername}>@{post.user.username}</Text>
-                </TouchableOpacity>
+                <Text style={styles.textPostUsername}>@{post.user.username}</Text>
                 {post.user.isVerified ? (
                   <View style={styles.textPostInlineVerifiedBadge}>
                     <Text style={styles.textPostInlineVerifiedCheck}>✓</Text>
                   </View>
                 ) : null}
               </View>
-              {profileSubtitle ? <Text style={styles.profileSubtitle}>{profileSubtitle}</Text> : null}
               <PostMetaSubline
                 sport={post.user.sport}
                 time={relativeTime}
@@ -1108,26 +1040,16 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
                 ) : null}
                 {showMediaUserOverlay ? (
                   <View style={styles.mediaUserOverlay} pointerEvents="box-none">
-                    <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Open @${post.user.username} profile`}>
-                      <Image source={{ uri: post.user.avatar }} style={styles.mediaOverlayAvatar} />
-                    </TouchableOpacity>
+                    <Image source={{ uri: post.user.avatar }} style={styles.mediaOverlayAvatar} />
                     <View style={styles.mediaOverlayTextCol}>
                       <View style={styles.mediaOverlayUserLine}>
-                        <TouchableOpacity
-                          onPress={handleAvatarPress}
-                          activeOpacity={0.85}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Open @${post.user.username} profile`}
-                        >
-                          <Text style={styles.mediaOverlayUsername}>@{post.user.username}</Text>
-                        </TouchableOpacity>
+                        <Text style={styles.mediaOverlayUsername}>@{post.user.username}</Text>
                         {post.user.isVerified ? (
                           <View style={styles.mediaOverlayVerifiedBadge}>
                             <Text style={styles.mediaOverlayVerifiedCheck}>✓</Text>
                           </View>
                         ) : null}
                       </View>
-                      {profileSubtitle ? <Text style={styles.mediaOverlaySubtitle}>{profileSubtitle}</Text> : null}
                       <PostMetaSubline
                         sport={post.user.sport}
                         time={relativeTime}
@@ -1145,26 +1067,16 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
           ) : (
             <View style={styles.textPostContent}>
               <View style={styles.textPostUserRow}>
-                <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Open @${post.user.username} profile`}>
-                  <Image source={{ uri: post.user.avatar }} style={styles.textPostCornerAvatar} />
-                </TouchableOpacity>
+                <Image source={{ uri: post.user.avatar }} style={styles.textPostCornerAvatar} />
                 <View style={styles.textPostUserTextCol}>
                   <View style={styles.textPostUserLine}>
-                    <TouchableOpacity
-                      onPress={handleAvatarPress}
-                      activeOpacity={0.85}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open @${post.user.username} profile`}
-                    >
-                      <Text style={styles.textPostUsername}>@{post.user.username}</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.textPostUsername}>@{post.user.username}</Text>
                     {post.user.isVerified ? (
                       <View style={styles.textPostInlineVerifiedBadge}>
                         <Text style={styles.textPostInlineVerifiedCheck}>✓</Text>
                       </View>
                     ) : null}
                   </View>
-                  {profileSubtitle ? <Text style={styles.profileSubtitle}>{profileSubtitle}</Text> : null}
                   <PostMetaSubline
                     sport={post.user.sport}
                     time={relativeTime}
@@ -1229,26 +1141,16 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
           ) : null}
           {showMediaUserOverlay ? (
             <View style={styles.mediaUserOverlay} pointerEvents="box-none">
-              <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Open @${post.user.username} profile`}>
-                <Image source={{ uri: post.user.avatar }} style={styles.mediaOverlayAvatar} />
-              </TouchableOpacity>
+              <Image source={{ uri: post.user.avatar }} style={styles.mediaOverlayAvatar} />
               <View style={styles.mediaOverlayTextCol}>
                 <View style={styles.mediaOverlayUserLine}>
-                  <TouchableOpacity
-                    onPress={handleAvatarPress}
-                    activeOpacity={0.85}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open @${post.user.username} profile`}
-                  >
-                    <Text style={styles.mediaOverlayUsername}>@{post.user.username}</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.mediaOverlayUsername}>@{post.user.username}</Text>
                   {post.user.isVerified ? (
                     <View style={styles.mediaOverlayVerifiedBadge}>
                       <Text style={styles.mediaOverlayVerifiedCheck}>✓</Text>
                     </View>
                   ) : null}
                 </View>
-                {profileSubtitle ? <Text style={styles.mediaOverlaySubtitle}>{profileSubtitle}</Text> : null}
                 <PostMetaSubline
                   sport={post.user.sport}
                   time={relativeTime}
@@ -1306,19 +1208,9 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
                 <View style={styles.userInfoRowSpacer} />
               ) : (
                 <View style={styles.userLeft}>
-                  <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Open @${post.user.username} profile`}>
-                    <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
-                  </TouchableOpacity>
+                  <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
                   <View>
-                    <TouchableOpacity
-                      onPress={handleAvatarPress}
-                      activeOpacity={0.85}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open @${post.user.username} profile`}
-                    >
-                      <Text style={styles.userName}>@{post.user.username}</Text>
-                    </TouchableOpacity>
-                  {profileSubtitle ? <Text style={styles.profileSubtitle}>{profileSubtitle}</Text> : null}
+                    <Text style={styles.userName}>@{post.user.username}</Text>
                     <PostMetaSubline
                       sport={post.user.sport}
                       time={relativeTime}
@@ -1419,7 +1311,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
           <View style={styles.commentsGrabber} />
           <View style={styles.commentsHeader}>
             <View style={styles.commentsHeaderLeftSpacer} />
-            <Text style={styles.commentsHeaderTitle}>{`Comments (${displayedCommentCount})`}</Text>
+            <Text style={styles.commentsHeaderTitle}>Comments</Text>
             <View style={styles.commentsHeaderRightSpacer} />
           </View>
           <View style={styles.commentsBody}>
@@ -1430,7 +1322,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({ post, isVisible = true, defa
                 setLiveCommentCount(count);
                 setOptimisticCommentDelta(0);
               }}
-              onNavigateToProfile={closeCommentsPanel}
             />
           </View>
         </Animated.View>

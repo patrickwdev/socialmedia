@@ -12,17 +12,6 @@ type CommentInsert = Database['public']['Tables']['comments']['Insert'];
 type CommentProfile = {
   username: string | null;
   avatarUrl: string | null;
-  displayName: string | null;
-  bannerUrl: string | null;
-  followersCount: number | null;
-  fansCount: number | null;
-  followingCount: number | null;
-  role: string | null;
-  orgName: string | null;
-  roleTitle: string | null;
-  bio: string | null;
-  location: string | null;
-  profileLink: string | null;
 };
 
 export type CommentNode = {
@@ -42,17 +31,6 @@ export type CommentNode = {
   author: {
     username: string;
     avatar: string;
-    name?: string;
-    banner?: string;
-    followers?: string;
-    fans?: string;
-    following?: string;
-    role?: string;
-    orgName?: string;
-    roleTitle?: string;
-    bio?: string;
-    location?: string;
-    profileLink?: string;
   };
   isPending?: boolean;
 };
@@ -110,17 +88,6 @@ function mapRowsToNodes(
     author: {
       username: profileByUserId.get(row.user_id)?.username ?? getFallbackUsername(row.user_id),
       avatar: profileByUserId.get(row.user_id)?.avatarUrl ?? getFallbackAvatar(row.user_id),
-      name: profileByUserId.get(row.user_id)?.displayName ?? undefined,
-      banner: profileByUserId.get(row.user_id)?.bannerUrl ?? undefined,
-      followers: String(profileByUserId.get(row.user_id)?.followersCount ?? 0),
-      fans: String(profileByUserId.get(row.user_id)?.fansCount ?? 0),
-      following: String(profileByUserId.get(row.user_id)?.followingCount ?? 0),
-      role: profileByUserId.get(row.user_id)?.role ?? undefined,
-      orgName: profileByUserId.get(row.user_id)?.orgName ?? undefined,
-      roleTitle: profileByUserId.get(row.user_id)?.roleTitle ?? undefined,
-      bio: profileByUserId.get(row.user_id)?.bio ?? undefined,
-      location: profileByUserId.get(row.user_id)?.location ?? undefined,
-      profileLink: profileByUserId.get(row.user_id)?.profileLink ?? undefined,
     },
   }));
 }
@@ -278,33 +245,7 @@ export function useComments({
             : typeof raw.avatar === 'string'
               ? raw.avatar
               : null;
-        const linkedinLink = typeof raw.linkedin_link === 'string' ? raw.linkedin_link.trim() : '';
-        const profileLinkFromLinks = Array.isArray(raw.links)
-          ? raw.links.find((item) => {
-              if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
-              const url = (item as Record<string, unknown>).url;
-              return typeof url === 'string' && url.trim().length > 0;
-            })
-          : null;
-        const linksUrl =
-          profileLinkFromLinks && typeof profileLinkFromLinks === 'object'
-            ? ((profileLinkFromLinks as Record<string, unknown>).url as string).trim()
-            : '';
-        profileByUserId.set(profile.id, {
-          username: profile.username,
-          avatarUrl,
-          displayName: typeof raw.display_name === 'string' ? raw.display_name : null,
-          bannerUrl: typeof raw.banner_url === 'string' ? raw.banner_url : null,
-          followersCount: typeof raw.followers_count === 'number' ? raw.followers_count : null,
-          fansCount: typeof raw.fans_count === 'number' ? raw.fans_count : null,
-          followingCount: typeof raw.following_count === 'number' ? raw.following_count : null,
-          role: typeof raw.role === 'string' ? raw.role : null,
-          orgName: typeof raw.org_name === 'string' ? raw.org_name.trim() : null,
-          roleTitle: typeof raw.role_title === 'string' ? raw.role_title.trim() : null,
-          bio: typeof raw.bio === 'string' ? raw.bio.trim() : null,
-          location: typeof raw.location === 'string' ? raw.location.trim() : null,
-          profileLink: linkedinLink || linksUrl || null,
-        });
+        profileByUserId.set(profile.id, { username: profile.username, avatarUrl });
       }
 
       const mapped = mapRowsToNodes(
@@ -414,33 +355,7 @@ export function useComments({
               : typeof raw.avatar === 'string'
                 ? raw.avatar
                 : null;
-          const linkedinLink = typeof raw.linkedin_link === 'string' ? raw.linkedin_link.trim() : '';
-          const profileLinkFromLinks = Array.isArray(raw.links)
-            ? raw.links.find((item) => {
-                if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
-                const url = (item as Record<string, unknown>).url;
-                return typeof url === 'string' && url.trim().length > 0;
-              })
-            : null;
-          const linksUrl =
-            profileLinkFromLinks && typeof profileLinkFromLinks === 'object'
-              ? ((profileLinkFromLinks as Record<string, unknown>).url as string).trim()
-              : '';
-        profileByUserId.set(profile.id, {
-          username: profile.username,
-          avatarUrl,
-          displayName: typeof raw.display_name === 'string' ? raw.display_name : null,
-          bannerUrl: typeof raw.banner_url === 'string' ? raw.banner_url : null,
-          followersCount: typeof raw.followers_count === 'number' ? raw.followers_count : null,
-          fansCount: typeof raw.fans_count === 'number' ? raw.fans_count : null,
-          followingCount: typeof raw.following_count === 'number' ? raw.following_count : null,
-          role: typeof raw.role === 'string' ? raw.role : null,
-          orgName: typeof raw.org_name === 'string' ? raw.org_name.trim() : null,
-          roleTitle: typeof raw.role_title === 'string' ? raw.role_title.trim() : null,
-          bio: typeof raw.bio === 'string' ? raw.bio.trim() : null,
-          location: typeof raw.location === 'string' ? raw.location.trim() : null,
-          profileLink: linkedinLink || linksUrl || null,
-        });
+          profileByUserId.set(profile.id, { username: profile.username, avatarUrl });
         }
 
         const mapped = mapRowsToNodes(
@@ -647,18 +562,6 @@ export function useComments({
             typeof user.user_metadata?.avatar_url === 'string'
               ? user.user_metadata.avatar_url
               : getFallbackAvatar(user.id),
-          name:
-            typeof user.user_metadata?.profile_name === 'string'
-              ? user.user_metadata.profile_name
-              : typeof user.user_metadata?.full_name === 'string'
-                ? user.user_metadata.full_name
-                : undefined,
-          banner:
-            typeof user.user_metadata?.banner_url === 'string'
-              ? user.user_metadata.banner_url
-              : undefined,
-          followers: '0',
-          following: '0',
         },
         isPending: true,
       };

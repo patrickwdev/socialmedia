@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, SafeAreaView, Platform, StatusBar, ActivityIndicator, Dimensions, Modal, Animated, FlatList, Pressable, TextInput, Alert, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Colors } from '@/constants/Colors';
@@ -13,7 +13,6 @@ import {
   type Post,
 } from '@/data/mock';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
 import { 
   ArrowLeft, 
   Share2, 
@@ -77,14 +76,8 @@ export default function ScoutProfileScreen() {
   const router = useRouter();
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string | string[] }>();
   const { user } = useAuth();
-  const { profile, loading: profileLoading, refetch } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
   const meta = (user?.user_metadata || {}) as ScoutMetadata & { profile_name?: string; full_name?: string };
-
-  useFocusEffect(
-    useCallback(() => {
-      void refetch();
-    }, [refetch])
-  );
   const [activeTab, setActiveTab] = useState('Liked');
   const [showConnectionsPanel, setShowConnectionsPanel] = useState(false);
 
@@ -354,11 +347,15 @@ export default function ScoutProfileScreen() {
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 4,
+    borderColor: Colors.background,
   },
   avatarPlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 4,
+    borderColor: Colors.background,
     backgroundColor: Colors.card,
     justifyContent: 'center',
     alignItems: 'center',
@@ -387,9 +384,6 @@ export default function ScoutProfileScreen() {
   nameSection: {
     marginBottom: 24,
   },
-  identityStack: {
-    gap: 1,
-  },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -405,20 +399,29 @@ export default function ScoutProfileScreen() {
     fontSize: 18,
     fontWeight: '800',
     color: Colors.text,
+    marginTop: -4,
+    marginBottom: 0,
   },
   subtitle: {
     color: Colors.textSecondary,
     fontSize: 15,
-    lineHeight: 20,
+    marginTop: -4,
+    marginBottom: 4,
   },
   locationAndBio: {
-    marginTop: 1,
-    gap: 1,
+    marginTop: -8,
+    gap: 10,
     marginBottom: 12,
+  },
+  linkFieldBelowLocation: {
+    marginTop: -8,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  locationTightAfterBio: {
+    marginTop: -8,
   },
   locationIcon: {
     marginRight: 6,
@@ -431,7 +434,7 @@ export default function ScoutProfileScreen() {
   bio: {
     color: Colors.text,
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   linkRow: {
     flexDirection: 'row',
@@ -990,41 +993,41 @@ export default function ScoutProfileScreen() {
 
         {/* Name section - same order as athlete: name, username, subtitle, bio */}
         <View style={styles.nameSection}>
-          <View style={styles.identityStack}>
-            <View style={styles.nameRow}>
-              <Text style={styles.name}>{displayName}</Text>
-            </View>
-            <Text style={styles.username}>@{username}</Text>
-            {[orgName, roleTitle].filter(Boolean).length > 0 ? (
-              <Text style={styles.subtitle}>{[orgName, roleTitle].filter(Boolean).join(' • ')}</Text>
-            ) : null}
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{displayName}</Text>
           </View>
+          <Text style={styles.username}>@{username}</Text>
+          {[orgName, roleTitle].filter(Boolean).length > 0 ? (
+            <Text style={styles.subtitle}>{[orgName, roleTitle].filter(Boolean).join(' • ')}</Text>
+          ) : null}
           {showProfileDetails ? (
             <View style={styles.locationAndBio}>
               {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
               {profile?.location ? (
-                <View style={styles.locationRow}>
+                <View style={[styles.locationRow, profile?.bio && styles.locationTightAfterBio]}>
                   <MapPin size={14} color={Colors.textSecondary} style={styles.locationIcon} />
                   <Text style={styles.locationText}>{profile.location}</Text>
                 </View>
               ) : null}
-              {displayLink ? (
-                <ProfileLinkDisplay
-                  displayUrl={displayLink}
-                  normalizedHref={normalizedDisplayLink}
-                  icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />}
-                  rowStyle={styles.linkRow}
-                  textStyle={styles.linkText}
-                />
-              ) : showLinkPlaceholder ? (
-                <TouchableOpacity
-                  onPress={() => router.push('/edit-profile')}
-                  activeOpacity={0.7}
-                  style={styles.linkPlaceholderTouchable}
-                >
-                  <Text style={styles.linkFieldPlaceholder}>Add in Edit profile</Text>
-                </TouchableOpacity>
-              ) : null}
+              <View style={profile?.location ? styles.linkFieldBelowLocation : undefined}>
+                {displayLink ? (
+                  <ProfileLinkDisplay
+                    displayUrl={displayLink}
+                    normalizedHref={normalizedDisplayLink}
+                    icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />}
+                    rowStyle={styles.linkRow}
+                    textStyle={styles.linkText}
+                  />
+                ) : showLinkPlaceholder ? (
+                  <TouchableOpacity
+                    onPress={() => router.push('/edit-profile')}
+                    activeOpacity={0.7}
+                    style={styles.linkPlaceholderTouchable}
+                  >
+                    <Text style={styles.linkFieldPlaceholder}>Add in Edit profile</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           ) : null}
         </View>

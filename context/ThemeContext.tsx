@@ -1,5 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, type ViewStyle } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ViewStyle } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { applyThemeMode, Colors, type ThemeMode } from '@/constants/Colors';

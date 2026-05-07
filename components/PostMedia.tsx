@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Image, View, type StyleProp, type ImageStyle, type ViewStyle } from 'react-native';
+import { Image, View, type StyleProp, type ViewStyle } from 'react-native';
 // Deep imports avoid expo-av's Audio/Recording chain; Metro on web fails to resolve `./Recording.types`.
 import Video from 'expo-av/build/Video';
 import { ResizeMode } from 'expo-av/build/Video.types';
@@ -58,11 +58,5 @@ export function PostMedia({
       />
     );
   }
-  return (
-    <Image
-      source={{ uri }}
-      style={style as StyleProp<ImageStyle>}
-      resizeMode={mode === 'preview' ? 'contain' : 'cover'}
-    />
-  );
+  return <Image source={{ uri }} style={style} resizeMode={mode === 'preview' ? 'contain' : 'cover'} />;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ import {
   type Post,
 } from '@/data/mock';
 import { useRouter } from 'expo-router';
-import { useIsFocused, useFocusEffect } from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 import {
   ArrowLeft,
   MoreHorizontal,
@@ -110,14 +110,8 @@ export default function CoachProfileScreen() {
   const router = useRouter();
   const isScreenFocused = useIsFocused();
   const { user } = useAuth();
-  const { profile, loading: profileLoading, refetch } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
   const { posts: feedPosts } = useFeedPosts();
-
-  useFocusEffect(
-    useCallback(() => {
-      void refetch();
-    }, [refetch])
-  );
   const meta = (user?.user_metadata || {}) as CoachMetadata & { profile_name?: string; full_name?: string };
   const [activeTab, setActiveTab] = useState<CoachTab>('posts');
   const [showConnectionsPanel, setShowConnectionsPanel] = useState(false);
@@ -397,6 +391,8 @@ export default function CoachProfileScreen() {
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 4,
+    borderColor: Colors.background,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -422,9 +418,6 @@ export default function CoachProfileScreen() {
   nameSection: {
     marginBottom: 24,
   },
-  identityStack: {
-    gap: 1,
-  },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -440,19 +433,31 @@ export default function CoachProfileScreen() {
     fontSize: 18,
     fontWeight: '800',
     color: Colors.text,
+    marginTop: -4,
+    marginBottom: 0,
   },
   subtitle: {
     color: Colors.textSecondary,
     fontSize: 15,
-    lineHeight: 20,
+    marginTop: -4,
+    marginBottom: 4,
   },
   locationAndBio: {
-    marginTop: 1,
-    gap: 1,
+    marginTop: -8,
+    gap: 10,
+  },
+  linkFieldBelowLocation: {
+    marginTop: -8,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  locationTightAfterBio: {
+    marginTop: -12,
+  },
+  locationSoloNudge: {
+    marginTop: -4,
   },
   locationIcon: {
     marginRight: 6,
@@ -465,7 +470,7 @@ export default function CoachProfileScreen() {
   bio: {
     color: Colors.text,
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   profileLinkRow: {
     flexDirection: 'row',
@@ -911,32 +916,37 @@ export default function CoachProfileScreen() {
           </View>
 
           <View style={styles.nameSection}>
-            <View style={styles.identityStack}>
-              <View style={styles.nameRow}>
-                <Text style={styles.name}>{displayName}</Text>
-              </View>
-              <Text style={styles.username}>@{username}</Text>
-              {[teamName, roleTitle].filter(Boolean).length > 0 ? (
-                <Text style={styles.subtitle}>{[teamName, roleTitle].filter(Boolean).join(' • ')}</Text>
-              ) : null}
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{displayName}</Text>
             </View>
+            <Text style={styles.username}>@{username}</Text>
+            {[teamName, roleTitle].filter(Boolean).length > 0 ? (
+              <Text style={styles.subtitle}>{[teamName, roleTitle].filter(Boolean).join(' • ')}</Text>
+            ) : null}
             {showProfileDetails ? (
               <View style={styles.locationAndBio}>
                 {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
                 {profile?.location ? (
-                  <View style={styles.locationRow}>
+                  <View
+                    style={[
+                      styles.locationRow,
+                      profile?.bio ? styles.locationTightAfterBio : styles.locationSoloNudge,
+                    ]}
+                  >
                     <MapPin size={14} color={Colors.textSecondary} style={styles.locationIcon} />
                     <Text style={styles.locationText}>{profile.location}</Text>
                   </View>
                 ) : null}
                 {displayLink ? (
-                  <ProfileLinkDisplay
-                    displayUrl={displayLink}
-                    normalizedHref={normalizedDisplayLink}
-                    icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />}
-                    rowStyle={styles.profileLinkRow}
-                    textStyle={styles.profileLinkText}
-                  />
+                  <View style={profile?.location ? styles.linkFieldBelowLocation : undefined}>
+                    <ProfileLinkDisplay
+                      displayUrl={displayLink}
+                      normalizedHref={normalizedDisplayLink}
+                      icon={<LinkIcon size={14} color={Colors.textSecondary} style={styles.locationIcon} />}
+                      rowStyle={styles.profileLinkRow}
+                      textStyle={styles.profileLinkText}
+                    />
+                  </View>
                 ) : null}
               </View>
             ) : null}

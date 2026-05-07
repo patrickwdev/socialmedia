@@ -5,7 +5,6 @@ import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthDeepLinks } from '@/hooks/useAuthDeepLinks';
 import { AuthProvider } from '@/context/AuthContext';
 import { FeedPostsProvider } from '@/context/FeedPostsContext';
-import { ViewerFollowsProvider } from '@/context/ViewerFollowsContext';
 import { CreatePostProvider } from '@/context/CreatePostContext';
 import { NotificationsProvider } from '@/context/NotificationsContext';
 import { ThemeProvider, ThemeStatusBar, useTheme, useThemeBackgroundStyle } from '@/context/ThemeContext';
@@ -34,15 +33,13 @@ export default function RootLayout() {
         <ThemeStatusBar />
         <AuthProvider>
           <AuthDeepLinksBridge />
-          <ViewerFollowsProvider>
-            <FeedPostsProvider>
-              <NotificationsProvider>
-                <CreatePostProvider>
-                  <ThemedStack />
-                </CreatePostProvider>
-              </NotificationsProvider>
-            </FeedPostsProvider>
-          </ViewerFollowsProvider>
+          <FeedPostsProvider>
+            <NotificationsProvider>
+              <CreatePostProvider>
+                <ThemedStack />
+              </CreatePostProvider>
+            </NotificationsProvider>
+          </FeedPostsProvider>
         </AuthProvider>
       </>
     </ThemeProvider>

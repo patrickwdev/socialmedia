@@ -14,9 +14,6 @@ import { PostMedia } from '@/components/PostMedia';
 import { useAuth } from '@/context/AuthContext';
 import { useRelativePostTime } from '@/hooks/useRelativePostTime';
 import type { CommentNode } from '@/hooks/useComments';
-import { useRouter } from 'expo-router';
-import { openUserProfile, viewerFanNavHint, viewerFollowNavHint } from '@/lib/openUserProfile';
-import { useViewerFollows } from '@/context/ViewerFollowsContext';
 
 type CommentItemProps = {
   comment: CommentNode;
@@ -29,22 +26,6 @@ type CommentItemProps = {
   onToggleLike: (comment: CommentNode) => void;
   onToggleReplies?: (commentId: string) => void;
   onOpenOptions?: (comment: CommentNode) => void;
-  onOpenProfile?: (payload: {
-    userId: string;
-    username: string;
-    avatar?: string;
-    displayName?: string;
-    banner?: string;
-    followers?: string;
-    fans?: string;
-    following?: string;
-    role?: string;
-    orgName?: string;
-    roleTitle?: string;
-    bio?: string;
-    location?: string;
-    profileLink?: string;
-  }) => void;
 };
 
 export function CommentItem({
@@ -58,11 +39,8 @@ export function CommentItem({
   onToggleLike,
   onToggleReplies,
   onOpenOptions,
-  onOpenProfile,
 }: CommentItemProps) {
   const { user } = useAuth();
-  const { isViewerFollowingUser, isViewerFanningUser } = useViewerFollows();
-  const router = useRouter();
   const timeLabel = useRelativePostTime(comment.createdAt, 'Just now', true);
   const isOwnComment = Boolean(user?.id && comment.userId === user.id);
   const displayReplyCount = replies.length > 0 ? replies.length : comment.replyCount;
@@ -72,66 +50,13 @@ export function CommentItem({
     ? 'Hide replies'
     : `View replies (${displayReplyCount})`;
 
-  const handleAvatarPress = () => {
-    if (onOpenProfile) {
-      onOpenProfile({
-        userId: comment.userId,
-        username: comment.author.username,
-        avatar: comment.author.avatar,
-        displayName: comment.author.name,
-        banner: comment.author.banner,
-        followers: comment.author.followers,
-        fans: comment.author.fans,
-        following: comment.author.following,
-        role: comment.author.role,
-        orgName: comment.author.orgName,
-        roleTitle: comment.author.roleTitle,
-        bio: comment.author.bio,
-        location: comment.author.location,
-        profileLink: comment.author.profileLink,
-      });
-      return;
-    }
-    openUserProfile(router, user?.id, {
-      userId: comment.userId,
-      username: comment.author.username,
-      avatar: comment.author.avatar,
-      displayName: comment.author.name,
-      banner: comment.author.banner,
-      followers: comment.author.followers,
-      fans: comment.author.fans,
-      following: comment.author.following,
-      role: comment.author.role,
-      orgName: comment.author.orgName,
-      roleTitle: comment.author.roleTitle,
-      bio: comment.author.bio,
-      location: comment.author.location,
-      profileLink: comment.author.profileLink,
-      ...viewerFollowNavHint(user?.id, comment.userId, isViewerFollowingUser),
-      ...viewerFanNavHint(user?.id, comment.userId, isViewerFanningUser),
-    });
-  };
-
   return (
     <View style={[styles.container, depth === 1 && styles.replyContainer]}>
       <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={handleAvatarPress}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={`Open @${comment.author.username} profile`}
-        >
-          <Image source={{ uri: comment.author.avatar }} style={styles.avatar} />
-        </TouchableOpacity>
+        <Image source={{ uri: comment.author.avatar }} style={styles.avatar} />
         <View style={styles.headerMain}>
           <View style={styles.metaRow}>
-            <TouchableOpacity
-              onPress={handleAvatarPress}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={`Open @${comment.author.username} profile`}
-              style={styles.usernameWrap}
-            >
+            <View style={styles.usernameWrap}>
               <Text
                 numberOfLines={1}
                 ellipsizeMode="tail"
@@ -139,7 +64,7 @@ export function CommentItem({
               >
                 @{comment.author.username}
               </Text>
-            </TouchableOpacity>
+            </View>
             <Text style={styles.timestamp}> · {timeLabel}</Text>
             {!comment.isPending ? (
               <TouchableOpacity
@@ -216,7 +141,6 @@ export function CommentItem({
               onEditPress={onEditPress}
               onToggleLike={onToggleLike}
               onOpenOptions={onOpenOptions}
-              onOpenProfile={onOpenProfile}
             />
           ))}
         </View>

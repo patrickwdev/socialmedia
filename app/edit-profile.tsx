@@ -300,7 +300,6 @@ export default function EditProfileScreen() {
         .filter((link) => link.title || link.url)
         .slice(0, 1);
       data.links = sanitizedLinks;
-      data.linkedin_link = sanitizedLinks[0]?.url || undefined;
       if (avatarUrlToSave) data.avatar_url = avatarUrlToSave;
       if (bannerUrlToSave) data.banner_url = bannerUrlToSave;
       // Always send bio and location so the server persists them (undefined can be omitted in JSON)
@@ -324,34 +323,6 @@ export default function EditProfileScreen() {
         setSaving(false);
         return;
       }
-
-      // Keep public profiles table aligned with auth metadata fields used by public profile routes.
-      const profilePatch: Record<string, unknown> = {
-        username: username.trim(),
-        display_name: name.trim() || username.trim(),
-        role: role ?? null,
-        sport: (data.sport as string | undefined)?.trim() || null,
-        team: (data.team as string | undefined)?.trim() || null,
-        bio: (data.bio as string | undefined)?.trim() || null,
-        location: (data.location as string | undefined)?.trim() || null,
-        org_name: (data.org_name as string | undefined)?.trim() || null,
-        role_title: (data.role_title as string | undefined)?.trim() || null,
-        linkedin_link: (data.linkedin_link as string | undefined)?.trim() || null,
-        birthday: (data.birthday as string | undefined)?.trim() || null,
-        links: (data.links as unknown[] | undefined) ?? null,
-      };
-      if (avatarUrlToSave) profilePatch.avatar_url = avatarUrlToSave;
-      if (bannerUrlToSave) profilePatch.banner_url = bannerUrlToSave;
-      const { error: profileUpdateError } = await supabase
-        .from('profiles')
-        .update(profilePatch)
-        .eq('id', userId);
-      if (profileUpdateError) {
-        setSaveError(profileUpdateError.message);
-        setSaving(false);
-        return;
-      }
-
       if (updateResult?.user) setUserFromUpdate(updateResult.user);
       await refreshSession();
       debugLog('handleSave: success, navigating to profile');
@@ -812,11 +783,15 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
+    borderWidth: 4,
+    borderColor: Colors.background,
   },
   avatarPlaceholder: {
     width: 120,
     height: 120,
     borderRadius: 60,
+    borderWidth: 4,
+    borderColor: Colors.background,
     backgroundColor: Colors.card,
     justifyContent: 'center',
     alignItems: 'center',

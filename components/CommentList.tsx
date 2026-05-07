@@ -15,29 +15,22 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as Linking from 'expo-linking';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
 import { Flag, Share2, UserPlus } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { CommentItem } from '@/components/CommentItem';
 import { useAuth } from '@/context/AuthContext';
 import { useComments, type CommentMediaDraft, type CommentNode } from '@/hooks/useComments';
 import { fetchTrendingGifs, searchGifs, type GifItem } from '@/lib/gifs';
-import { openUserProfile, viewerFanNavHint, viewerFollowNavHint } from '@/lib/openUserProfile';
-import { useViewerFollows } from '@/context/ViewerFollowsContext';
 
 type CommentListProps = {
   postId: string;
   onCommentCountDelta?: (delta: number) => void;
   onCommentCountSync?: (count: number) => void;
-  onNavigateToProfile?: () => void;
 };
 
-export function CommentList({ postId, onCommentCountDelta, onCommentCountSync, onNavigateToProfile }: CommentListProps) {
+export function CommentList({ postId, onCommentCountDelta, onCommentCountSync }: CommentListProps) {
   const { user } = useAuth();
-  const { isViewerFollowingUser, isViewerFanningUser } = useViewerFollows();
-  const router = useRouter();
   const [inputValue, setInputValue] = useState('');
   const [replyingTo, setReplyingTo] = useState<CommentNode | null>(null);
   const [editingComment, setEditingComment] = useState<CommentNode | null>(null);
@@ -196,9 +189,11 @@ export function CommentList({ postId, onCommentCountDelta, onCommentCountSync, o
   };
 
   const handleSharePress = () => {
+    if (!selectedComment) return;
     closeOptionsSheet();
-    const postUrl = Linking.createURL(`/post/${postId}`);
-    void Share.share({ message: postUrl });
+    const preview = selectedComment.content.trim();
+    const text = preview ? `@${selectedComment.author.username}: ${preview}` : `Comment by @${selectedComment.author.username}`;
+    void Share.share({ message: text });
   };
 
   const handleReportPress = () => {
@@ -275,42 +270,6 @@ export function CommentList({ postId, onCommentCountDelta, onCommentCountSync, o
                 }
                 onToggleReplies={(commentId) => void toggleReplies(commentId)}
                 onOpenOptions={openOptionsSheet}
-                onOpenProfile={({
-                  userId,
-                  username,
-                  avatar,
-                  displayName,
-                  banner,
-                  followers,
-                  fans,
-                  following,
-                  role,
-                  orgName,
-                  roleTitle,
-                  bio,
-                  location,
-                  profileLink,
-                }) => {
-                  onNavigateToProfile?.();
-                  openUserProfile(router, user?.id, {
-                    userId,
-                    username,
-                    avatar,
-                    displayName,
-                    banner,
-                    followers,
-                    fans,
-                    following,
-                    role,
-                    orgName,
-                    roleTitle,
-                    bio,
-                    location,
-                    profileLink,
-                    ...viewerFollowNavHint(user?.id, userId, isViewerFollowingUser),
-                    ...viewerFanNavHint(user?.id, userId, isViewerFanningUser),
-                  });
-                }}
               />
             )}
             ListEmptyComponent={<Text style={styles.emptyText}>No comments yet.</Text>}

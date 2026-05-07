@@ -1,14 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
   Dimensions,
   FlatList,
   Image,
-  Modal,
   Platform,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
   StatusBar,
   Text,
   TouchableOpacity,
@@ -24,12 +19,7 @@ import { Colors } from '@/constants/Colors';
 import { useFeedPosts } from '@/context/FeedPostsContext';
 import { useTheme, useThemeBackgroundStyle, useThemedStylesheet } from '@/context/ThemeContext';
 import { PostMedia } from '@/components/PostMedia';
-import { CommentList } from '@/components/CommentList';
 import type { Post } from '@/data/mock';
-import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'expo-router';
-import { openUserProfile, viewerFanNavHint, viewerFollowNavHint } from '@/lib/openUserProfile';
-import { useViewerFollows } from '@/context/ViewerFollowsContext';
 
 const { height: windowHeight } = Dimensions.get('window');
 
@@ -40,16 +30,10 @@ export default function ClipsFeed({
   initialClipId?: string;
   onPressClip?: (id: string) => void;
 }) {
-  const { user } = useAuth();
-  const router = useRouter();
   const isTabFocused = useIsFocused();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const bgStyle = useThemeBackgroundStyle();
-  const screenHeight =
-    Platform.OS === 'ios'
-      ? windowHeight - tabBarHeight
-      : windowHeight - tabBarHeight + (StatusBar.currentHeight || 0);
   const styles = useThemedStylesheet(() => ({
     container: {
       flex: 1,
@@ -194,54 +178,13 @@ export default function ClipsFeed({
       textAlign: 'center',
       marginTop: 8,
     },
-    commentsBackdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-    },
-    commentsPanel: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: Math.round(screenHeight * 0.74),
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      overflow: 'hidden',
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: Colors.border,
-      backgroundColor: Colors.card,
-    },
-    commentsGrabberWrap: {
-      alignItems: 'center',
-      paddingTop: 8,
-      paddingBottom: 6,
-    },
-    commentsGrabber: {
-      width: 40,
-      height: 4,
-      borderRadius: 999,
-      backgroundColor: Colors.textSecondary,
-      opacity: 0.45,
-    },
-    commentsHeaderRow: {
-      paddingHorizontal: 16,
-      paddingBottom: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    commentsHeaderTitle: {
-      color: Colors.text,
-      fontSize: 16,
-      fontWeight: '700',
-    },
-    commentsBody: {
-      flex: 1,
-    },
   }));
 
+  const screenHeight =
+    Platform.OS === 'ios'
+      ? windowHeight - tabBarHeight
+      : windowHeight - tabBarHeight + (StatusBar.currentHeight || 0);
   const { clipsPosts, togglePostLike } = useFeedPosts();
-  const { isViewerFollowingUser, isViewerFanningUser } = useViewerFollows();
 
   const handleLikePress = useCallback(
     (event: GestureResponderEvent, post: Post) => {
@@ -249,24 +192,6 @@ export default function ClipsFeed({
       void togglePostLike(post);
     },
     [togglePostLike]
-  );
-
-  const handleAvatarPress = useCallback(
-    (event: GestureResponderEvent, post: Post) => {
-      event.stopPropagation();
-      openUserProfile(router, user?.id, {
-        userId: post.user.id,
-        username: post.user.username,
-        avatar: post.user.avatar,
-        displayName: post.user.name,
-        banner: post.user.banner,
-        followers: post.user.followers,
-        following: post.user.following,
-        ...viewerFollowNavHint(user?.id, post.user.id, isViewerFollowingUser),
-        ...viewerFanNavHint(user?.id, post.user.id, isViewerFanningUser),
-      });
-    },
-    [router, user?.id, isViewerFollowingUser, isViewerFanningUser]
   );
 
   const initialIndex = useMemo(() => {
@@ -277,88 +202,7 @@ export default function ClipsFeed({
 
   const listRef = useRef<FlatList<Post>>(null);
   const [visibleClipIds, setVisibleClipIds] = useState<string[]>([]);
-  const [commentsVisible, setCommentsVisible] = useState(false);
-  const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
-  const [commentCountOverrides, setCommentCountOverrides] = useState<Record<string, number>>({});
-  const [activeLiveCommentCount, setActiveLiveCommentCount] = useState(0);
-  const [activeOptimisticCommentDelta, setActiveOptimisticCommentDelta] = useState(0);
-  const activeCommentsPostIdRef = useRef<string | null>(null);
-  const commentsSlideAnim = useRef(new Animated.Value(640)).current;
-  const commentsBackdropAnim = useRef(new Animated.Value(0)).current;
   const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 70 }), []);
-  const displayedActiveCommentCount = Math.max(0, activeLiveCommentCount + activeOptimisticCommentDelta);
-
-  const getCommentCount = useCallback(
-    (postId: string) => {
-      const overrideCount = commentCountOverrides[postId];
-      if (typeof overrideCount === 'number') return Math.max(0, overrideCount);
-      const post = clipsPosts.find((clip) => clip.id === postId);
-      return Math.max(0, post?.comments ?? 0);
-    },
-    [clipsPosts, commentCountOverrides]
-  );
-
-  const openCommentsSheet = useCallback(
-    (postId: string) => {
-      if (!visibleClipIds.includes(postId)) return;
-      const currentCount = getCommentCount(postId);
-      setActiveCommentsPostId(postId);
-      activeCommentsPostIdRef.current = postId;
-      setActiveLiveCommentCount(currentCount);
-      setActiveOptimisticCommentDelta(0);
-      setCommentsVisible(true);
-      commentsSlideAnim.setValue(640);
-      commentsBackdropAnim.setValue(0);
-      Animated.parallel([
-        Animated.timing(commentsSlideAnim, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.timing(commentsBackdropAnim, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    },
-    [commentsBackdropAnim, commentsSlideAnim, getCommentCount, visibleClipIds]
-  );
-
-  const closeCommentsSheet = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(commentsSlideAnim, {
-        toValue: 640,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(commentsBackdropAnim, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setCommentsVisible(false);
-      setActiveCommentsPostId(null);
-      activeCommentsPostIdRef.current = null;
-      setActiveOptimisticCommentDelta(0);
-    });
-  }, [commentsBackdropAnim, commentsSlideAnim]);
-
-  const handleCommentCountDelta = useCallback((delta: number) => {
-    setActiveOptimisticCommentDelta((prev) => prev + delta);
-  }, []);
-
-  const handleCommentCountSync = useCallback((count: number) => {
-    setActiveLiveCommentCount(count);
-    setActiveOptimisticCommentDelta(0);
-    const postId = activeCommentsPostIdRef.current;
-    if (!postId) return;
-    setCommentCountOverrides((prev) => ({
-      ...prev,
-      [postId]: Math.max(0, count),
-    }));
-  }, []);
 
   useEffect(() => {
     // Ensures correct scroll position when initialClipId changes.
@@ -410,14 +254,7 @@ export default function ClipsFeed({
 
       <View style={styles.rightActions}>
         <View style={styles.avatarStack}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Open @${item.user.username} profile`}
-            onPress={(event) => handleAvatarPress(event, item)}
-            activeOpacity={0.85}
-          >
-            <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
-          </TouchableOpacity>
+          <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
 
           <View style={styles.plusBadge}>
             <Plus size={10} color="white" strokeWidth={4} />
@@ -443,19 +280,8 @@ export default function ClipsFeed({
         </View>
 
         <View style={styles.actionBlock}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Open comments"
-            onPress={(event) => {
-              event.stopPropagation();
-              openCommentsSheet(item.id);
-            }}
-            activeOpacity={0.8}
-            disabled={!visibleClipIds.includes(item.id)}
-          >
-            <MessageCircle size={26} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.actionCount}>{getCommentCount(item.id)}</Text>
+          <MessageCircle size={26} color="white" />
+          <Text style={styles.actionCount}>{item.comments}</Text>
         </View>
 
         <View style={styles.actionBlock}>
@@ -470,16 +296,9 @@ export default function ClipsFeed({
 
       <View style={styles.bottomInfo}>
         <View style={styles.userLine}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Open @${item.user.username} profile`}
-            onPress={(event) => handleAvatarPress(event, item)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.username}>
-              @{item.user.username}
-            </Text>
-          </TouchableOpacity>
+          <Text style={styles.username}>
+            @{item.user.username}
+          </Text>
 
           {item.user.isVerified && (
             <View style={styles.verifiedBadge}>
@@ -499,18 +318,7 @@ export default function ClipsFeed({
       </View>
     </TouchableOpacity>
     ),
-    [
-      isTabFocused,
-      onPressClip,
-      screenHeight,
-      visibleClipIds,
-      bgStyle,
-      handleLikePress,
-      handleAvatarPress,
-      getCommentCount,
-      openCommentsSheet,
-      styles,
-    ]
+    [isTabFocused, onPressClip, screenHeight, visibleClipIds, bgStyle, handleLikePress, styles]
   );
 
   return (
@@ -541,32 +349,6 @@ export default function ClipsFeed({
         initialScrollIndex={clipsPosts.length > 0 ? initialIndex : undefined}
         getItemLayout={getItemLayout}
       />
-      <Modal visible={commentsVisible} transparent animationType="none" onRequestClose={closeCommentsSheet}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={closeCommentsSheet}>
-          <Animated.View style={[styles.commentsBackdrop, { opacity: commentsBackdropAnim }]} />
-        </Pressable>
-        <Animated.View style={[styles.commentsPanel, bgStyle, { transform: [{ translateY: commentsSlideAnim }] }]}>
-          <SafeAreaView style={[bgStyle, { flex: 1 }]}>
-            <View style={styles.commentsGrabberWrap}>
-              <View style={styles.commentsGrabber} />
-            </View>
-            <View style={styles.commentsHeaderRow}>
-              <Text style={styles.commentsHeaderTitle}>Comments ({displayedActiveCommentCount})</Text>
-            </View>
-            <View style={styles.commentsBody}>
-              {activeCommentsPostId ? (
-                <CommentList
-                  key={activeCommentsPostId}
-                  postId={activeCommentsPostId}
-                  onCommentCountDelta={handleCommentCountDelta}
-                  onCommentCountSync={handleCommentCountSync}
-                  onNavigateToProfile={closeCommentsSheet}
-                />
-              ) : null}
-            </View>
-          </SafeAreaView>
-        </Animated.View>
-      </Modal>
     </View>
   );
 }

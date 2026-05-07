@@ -134,10 +134,6 @@ export interface FollowerItem {
   username: string;
   avatar: string;
   isVerified: boolean;
-  displayName?: string;
-  banner?: string;
-  followers?: string;
-  following?: string;
 }
 
 export function generateFollowers(count: number): FollowerItem[] {
